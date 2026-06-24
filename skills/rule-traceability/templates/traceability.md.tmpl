@@ -1,0 +1,44 @@
+# Rule traceability convention
+
+This file tells agents how to disclose rule usage in their responses. Rules are defined under `.agents/rules/` (and package-local rule folders) as `##`-heading IDs and indexed in `.agents/rules-catalog.md`.
+
+## When to include a trace
+
+For planning, implementation, debugging, and review responses, append a `Rule trace` section whenever repository or package rules materially constrained the work — package boundaries, environment setup, validation/tests, workflow choice, source-of-truth placement, or review findings.
+
+Omit it only when no rule materially shaped the response (a purely conversational answer or a trivial command result).
+
+## Trace format
+
+```md
+Rule trace
+
+- Candidate rules loaded: ...
+- Rules applied: ...
+- Sources: ...
+- Reasoning note: ...
+- Deviations: ...
+```
+
+## Semantics
+
+- `Candidate rules loaded` — rules plausibly in scope for the task and area. Be inclusive and honest; the diff against `Rules applied` is the point.
+- `Rules applied` — the rules that materially constrained the answer.
+- `Sources` — the files that define the cited IDs.
+- `Reasoning note` — why the cited rules mattered, not a restatement of the task.
+- `Deviations` — an in-scope rule (especially MUST/SHOULD) deliberately not applied, with a one-line justification. Omit the line if there are none. This turns a silent gap into a reviewable decision.
+
+## Linking
+
+Link every cited ID directly to its defining heading, e.g. `` [`ROOT-001`](rules/root.md) ``, not bare text. Use the catalog only as a discovery aid.
+
+## Example
+
+```md
+Rule trace
+
+- Candidate rules loaded: [`ROOT-003`](rules/root.md), [`TEST-002`](rules/testing.md)
+- Rules applied: [`ROOT-003`](rules/root.md)
+- Sources: [`.agents/rules/root.md`](rules/root.md)
+- Reasoning note: the change was a formatting-only edit, so the style rule constrained it; no test rule was triggered.
+```

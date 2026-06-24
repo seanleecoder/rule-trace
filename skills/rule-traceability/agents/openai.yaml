@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rule Traceability"
+  short_description: "Stable rule IDs, trace blocks, usage counters, and a validator to make agent rule application visible and auditable"
+  default_prompt: "Use $rule-traceability to add rule traceability to a repo, convert existing agent rules into a traceable ID-based format, count how often each rule is considered vs applied, audit which rules are dead or miscoped, or validate that a rule catalog and its importers haven't drifted."

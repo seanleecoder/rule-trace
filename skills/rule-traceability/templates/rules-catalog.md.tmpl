@@ -1,0 +1,16 @@
+# Rule Traceability Catalog
+
+Single discovery index for every rule ID. Each row maps an ID to the file that defines it. This table mirrors the full set of `##` headings across the rule files; when a rule is added, removed, or moved, update this table in the same change.
+
+## Catalog
+
+| Rule ID    | Layer | Scope | Severity | Source                                   | Summary                          |
+| ---------- | ----- | ----- | -------- | ---------------------------------------- | -------------------------------- |
+| `ROOT-001` | root  | repo  | SHOULD   | [`.agents/rules/root.md`](rules/root.md) | Example seed rule — replace me   |
+
+<!--
+Add one row per rule. Keep the ID cell to just the ID (backticks optional).
+The Source cell should link to the defining file. The validator
+(scripts/validate-rules.mjs) checks that every row resolves to a real heading
+and that every heading appears here.
+-->

@@ -1,0 +1,40 @@
+{
+  "name": "rule-traceability",
+  "version": "1.0.0",
+  "description": "Make AI-agent rule application visible and auditable: stable rule IDs, a catalog, trace blocks, usage counters, and a deterministic validator. Installable across Claude Code, OpenCode, and Codex via the Agent Skills standard.",
+  "type": "module",
+  "bin": {
+    "rule-traceability": "skills/rule-traceability/scripts/cli.mjs"
+  },
+  "files": [
+    "skills",
+    "hooks",
+    ".claude-plugin",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "claude-code",
+    "agent-skills",
+    "skills.sh",
+    "opencode",
+    "codex",
+    "ai-agents",
+    "rules",
+    "traceability",
+    "governance"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ilovepku/rule-traceability.git"
+  },
+  "homepage": "https://github.com/ilovepku/rule-traceability#readme",
+  "bugs": {
+    "url": "https://github.com/ilovepku/rule-traceability/issues"
+  },
+  "author": "Sean Lee (ilovepku)",
+  "license": "MIT"
+}

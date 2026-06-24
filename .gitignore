@@ -1,0 +1,6 @@
+node_modules/
+.DS_Store
+# Generated metrics (only relevant inside consuming repos, never here)
+.agents/metrics/traces.jsonl
+.agents/metrics/report.json
+.agents/metrics/dashboard.html
