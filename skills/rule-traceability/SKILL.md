@@ -77,4 +77,4 @@ Then `node <skill>/scripts/report.mjs --root <repo>` aggregates the log into per
 
 ## Validate (CI)
 
-`node <skill>/scripts/validate-rules.mjs --root <repo>` checks: every catalog ID resolves to a heading; every heading is catalogued; no duplicate IDs; the importers reference identical file sets; required fields present (incl. Severity — pass `--no-severity` while migrating before severities are added); and warns on numbering gaps. Trace-lint mode `--lint-file <path>` flags cited IDs missing from the catalog. Wire it into CI as the project's test runner expects. Exit 1 on errors.
+`node <skill>/scripts/validate-rules.mjs --root <repo>` checks: every catalog ID resolves to a heading; every heading is catalogued; no duplicate IDs; the importers reference identical file sets; required fields present (incl. Severity — pass `--no-severity` while migrating before severities are added); and warns on numbering gaps. Trace-lint mode `--lint-file <path>` flags cited IDs missing from the catalog. Exit 1 on errors. For copy-paste GitHub Actions / GitLab / package-script / Stop-hook snippets, see `references/ci-wiring.md`.
