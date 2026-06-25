@@ -49,17 +49,12 @@ Extraction is agent judgment; the validator is the deterministic check on the ou
 
 ## audit — maintain the rule set with evidence
 
-Generalizes the "audit your rules" workflow with *quantitative* evidence from the counters. Steps:
+Maintain the rules by combining repo state, *quantitative* usage evidence, and the current session into concrete edits. **Follow `references/audit.md` in full** — it has the method, parameters (`scope`/`paths`/`session`/`usage`/`apply`), the `report.json` flag interpretation, the output template, and the rules of thumb. In short:
 
 1. Build the latest report: `node <skill>/scripts/report.mjs --root <repo>` (writes `report.json` + `dashboard.html` under the metrics dir).
-2. Read `report.json`. Treat each flag as a candidate action:
-   - **dead rules** (never a candidate) → retire, or the rule's "Applies when" is too narrow/wrong.
-   - **always-candidate-never-applied** → miscoped, redundant, or being ignored; tighten scope or remove.
-   - **low application rate** → investigate whether the rule is weak guidance or noise.
-   - **un-waived MUST gaps** → the model claimed a MUST was in scope but neither applied it nor waived it; highest-priority review.
-   - **unknown IDs** → hallucinated or stale citations; fix the rule text or catalog.
-3. Combine with session evidence (repeated corrections, contradictions). Propose Keep / Revise / Remove / Consolidate / Add per rule, in the narrowest correct file.
-4. Re-validate after edits.
+2. Read its flags (dead / always-candidate-never-applied / low-rate / un-waived MUST / unknown IDs) and combine with session evidence.
+3. Classify each rule Keep / Revise / Remove / Consolidate / Add, in the narrowest correct file; if applying fixes, keep to low-risk ones.
+4. Re-validate and regenerate the catalog after edits.
 
 ## report — counters and dashboard
 
