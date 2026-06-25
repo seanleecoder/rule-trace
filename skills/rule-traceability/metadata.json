@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "organization": "ilovepku",
+  "organization": "seanleecoder",
   "date": "June 2026",
   "abstract": "Make AI-agent rule application visible and auditable. Stable rule IDs anchored at markdown headings, a catalog, response-time trace blocks disclosing candidate vs applied rules, cross-session usage counters, severity + waiver semantics, and a deterministic validator that guards catalog/heading correspondence and importer drift. Tool-agnostic convention plus init/migrate/audit/report modes for adopting the pattern in any repo across Claude Code, OpenCode, and Codex.",
   "references": [

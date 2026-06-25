@@ -18,7 +18,7 @@ Background: [Making AI-agent rule application visible — stable IDs and trace b
 ### Across all your agents (skills.sh — recommended)
 
 ```bash
-npx skills add ilovepku/rule-traceability
+npx skills add seanleecoder/rule-traceability
 ```
 
 Installs into every detected agent at once (Claude Code → `.claude/skills/`, OpenCode/Codex/Cursor → `.agents/skills/`). Add `-g` for a global install, or `--copy` to copy instead of symlink. Update later with `npx skills update rule-traceability`.
@@ -26,8 +26,8 @@ Installs into every detected agent at once (Claude Code → `.claude/skills/`, O
 ### As a native Claude Code plugin
 
 ```text
-/plugin marketplace add ilovepku/rule-traceability
-/plugin install rule-traceability@ilovepku-skills
+/plugin marketplace add seanleecoder/rule-traceability
+/plugin install rule-traceability@seanleecoder-skills
 ```
 
 The plugin install additionally wires the live usage counter (a `Stop` hook) automatically — see [Counters](#counters).
@@ -35,7 +35,7 @@ The plugin install additionally wires the live usage counter (a `Stop` hook) aut
 ### As a CLI in CI (no agent runtime needed)
 
 ```bash
-npx github:ilovepku/rule-traceability validate   # exit 1 on any rule-system error
+npx github:seanleecoder/rule-traceability validate   # exit 1 on any rule-system error
 ```
 
 ## Quickstart
@@ -46,7 +46,7 @@ The deterministic parts are plain Node (≥18, zero dependencies) and can be run
 
 ```bash
 # Validate the rule system (run from the repo root)
-node <skill>/scripts/validate-rules.mjs            # or: npx github:ilovepku/rule-traceability validate
+node <skill>/scripts/validate-rules.mjs            # or: npx github:seanleecoder/rule-traceability validate
 # Backfill usage counts from saved transcripts, then build the dashboard
 node <skill>/scripts/parse-traces.mjs
 node <skill>/scripts/report.mjs                    # writes .agents/metrics/report.json + dashboard.html
@@ -69,4 +69,4 @@ Trace blocks already carry candidate + applied IDs, so the data exists in transc
 
 ## License
 
-MIT © Sean Lee ([ilovepku](https://github.com/ilovepku))
+MIT © Sean Lee ([seanleecoder](https://github.com/seanleecoder))

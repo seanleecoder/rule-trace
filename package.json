@@ -32,12 +32,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ilovepku/rule-traceability.git"
+    "url": "git+https://github.com/seanleecoder/rule-traceability.git"
   },
-  "homepage": "https://github.com/ilovepku/rule-traceability#readme",
+  "homepage": "https://github.com/seanleecoder/rule-traceability#readme",
   "bugs": {
-    "url": "https://github.com/ilovepku/rule-traceability/issues"
+    "url": "https://github.com/seanleecoder/rule-traceability/issues"
   },
-  "author": "Sean Lee (ilovepku)",
+  "author": "Sean Lee (seanleecoder)",
   "license": "MIT"
 }

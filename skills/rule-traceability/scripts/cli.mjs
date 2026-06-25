@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Thin CLI dispatcher so the deterministic tooling is runnable without a coding
-// agent — e.g. in CI via `npx github:ilovepku/rule-traceability validate`.
+// agent — e.g. in CI via `npx github:seanleecoder/rule-traceability validate`.
 // Delegates to the sibling scripts; no logic lives here.
 
 import { spawnSync } from 'node:child_process'

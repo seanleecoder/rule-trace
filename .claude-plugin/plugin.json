@@ -3,9 +3,9 @@
   "description": "Make AI-agent rule application visible and auditable: stable rule IDs, a catalog, response-time trace blocks, cross-session usage counters, severity + waiver semantics, and a deterministic validator that guards catalog/heading correspondence and importer drift.",
   "version": "1.0.0",
   "author": {
-    "name": "Sean Lee (ilovepku)"
+    "name": "Sean Lee (seanleecoder)"
   },
-  "homepage": "https://github.com/ilovepku/rule-traceability",
-  "repository": "https://github.com/ilovepku/rule-traceability",
+  "homepage": "https://github.com/seanleecoder/rule-traceability",
+  "repository": "https://github.com/seanleecoder/rule-traceability",
   "license": "MIT"
 }
