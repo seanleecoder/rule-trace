@@ -29,7 +29,7 @@ Commands:
              Flags: --root <dir>  --transcripts <dir>  --out <file>
   report     Aggregate the event log into report.json + a dashboard.html.
              Flags: --root <dir>  --out-json <file>  --out-html <file>
-  catalog    Generate the rule catalog from the `## ID` headings (preserves
+  catalog    Generate the rule catalog from the rule ID headings (preserves
              existing summaries). Prints a dry run; --write persists it.
              Flags: --root <dir>  --write
   scaffold   Write the optional operational wiring (metrics .gitignore, a CI job

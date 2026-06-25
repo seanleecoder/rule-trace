@@ -301,3 +301,18 @@ test('scaffold-wiring never overwrites an existing settings.json', () => {
     'a .example settings file should be written instead',
   )
 })
+
+// --- CLI dispatcher loads and lists every subcommand ---
+// (Guards against syntax errors in cli.mjs that the script-level tests miss,
+// since they invoke the scripts directly rather than through the dispatcher.)
+test('cli.mjs loads and its help lists every subcommand', () => {
+  const CLI = path.join(
+    repoRoot,
+    'skills/rule-traceability/scripts/cli.mjs',
+  )
+  const { status, out } = runScript(CLI, ['--help'])
+  assert.equal(status, 0, out)
+  for (const cmd of ['validate', 'parse', 'report', 'catalog', 'scaffold']) {
+    assert.match(out, new RegExp(`\\b${cmd}\\b`), `help should list ${cmd}`)
+  }
+})
