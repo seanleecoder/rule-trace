@@ -16,6 +16,17 @@
 
 **The invariant:** the catalog mirrors the full set of headings. Any change that adds, removes, or moves a rule must update the catalog in the *same* change. The validator fails on orphan headings (heading without a catalog row) and on dangling catalog rows (row without a heading), which is exactly what catches a heading that was moved or renamed.
 
+## Generating the catalog
+
+You don't have to maintain the table by hand. `scripts/generate-catalog.mjs` derives it from the `## ID` headings:
+
+```
+node <skill>/scripts/generate-catalog.mjs --root <repo>           # dry run → stdout
+node <skill>/scripts/generate-catalog.mjs --root <repo> --write   # persist
+```
+
+It fills ID, Layer (from the ID prefix family), Scope and Severity (from each rule's fields), Source (a link to the defining file), and a Summary derived from the rule's first `- Rule:` sentence. **Existing summaries are preserved** — re-running only fills rows for new IDs, so curated wording is never overwritten. When the catalog already exists, only the table region is rewritten; surrounding prose is kept. The validator still guards the result, so generate-then-validate is the safe loop after any rule change.
+
 ## The layout config
 
 The scripts resolve repo layout from an optional `.agents/traceability.config.json`. Omit it to accept the conventional defaults:

@@ -32,6 +32,7 @@ Goal: drop the convention in, create an empty catalog, seed one example rule, an
 2. Copy `templates/traceability.md.tmpl` → `.agents/traceability.md`, `templates/rules-catalog.md.tmpl` → `.agents/rules-catalog.md`, and `templates/rule-file.md.tmpl` → `.agents/rules/root.md` (keep the one example rule so the layout is concrete).
 3. Wire every agent entry point present to load the rule files, in lockstep — see `references/importer-wiring.md`. The non-negotiable invariant: **all importers reference the identical set of files.** The validator enforces this.
 4. Run `node <skill>/scripts/validate-rules.mjs --root <repo>` and fix anything it reports.
+5. Optionally scaffold the operational wiring (a CI job that runs the validator, a metrics `.gitignore`, the Claude Code Stop hook) with `node <skill>/scripts/scaffold-wiring.mjs --root <repo>` — it's non-destructive. Offer this; don't force it.
 
 ## migrate — turn existing rules into traceable form
 
@@ -41,7 +42,7 @@ This is the high-value mode and the part that needs judgment — extraction is n
 2. **Split** prose into discrete, individually-citable rules. One rule = one enforceable idea.
 3. **Assign IDs** by layer: repo-wide (`ROOT-`), topic/area (e.g. `TEST-`, `STYLE-`), package-local (`PKG-<PKG>-<AREA>-`). Number sequentially per prefix. IDs are immutable once published.
 4. **Rewrite** each rule into the anatomy in `references/rule-anatomy.md` (Scope / Applies when / Severity / Rule).
-5. **Build** the catalog (`references/catalog-format.md`) and **wire** the importers (`references/importer-wiring.md`).
+5. **Build** the catalog — run `node <skill>/scripts/generate-catalog.mjs --root <repo> --write` to derive it from the headings (it preserves any summaries you've already written), then **wire** the importers (`references/importer-wiring.md`). See `references/catalog-format.md`.
 6. **Validate**: `node <skill>/scripts/validate-rules.mjs --root <repo>` must pass.
 
 Extraction is agent judgment; the validator is the deterministic check on the output. Don't invent rules the sources don't support.

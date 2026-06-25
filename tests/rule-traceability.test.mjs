@@ -204,3 +204,100 @@ test('plugin.json and marketplace.json carry required fields and point at a real
     'the referenced skill SKILL.md must exist',
   )
 })
+
+// --- catalog generator ---
+const GENERATE = path.join(
+  repoRoot,
+  'skills/rule-traceability/scripts/generate-catalog.mjs',
+)
+const SCAFFOLD = path.join(
+  repoRoot,
+  'skills/rule-traceability/scripts/scaffold-wiring.mjs',
+)
+
+function runScript(script, args = []) {
+  const res = spawnSync(process.execPath, [script, ...args], {
+    encoding: 'utf8',
+  })
+  return { status: res.status, out: (res.stdout || '') + (res.stderr || '') }
+}
+
+test('generate-catalog derives rows from headings and preserves existing summaries', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-gen-'))
+  fs.mkdirSync(path.join(dir, '.agents', 'rules'), { recursive: true })
+  fs.writeFileSync(
+    path.join(dir, '.agents', 'rules', 'root.md'),
+    [
+      '# Rules',
+      '',
+      '## ROOT-001',
+      '- Scope: repository',
+      '- Applies when: always',
+      '- Severity: MUST',
+      '- Rule: Pin the toolchain versions. This second sentence is dropped.',
+      '',
+      '## ROOT-002',
+      '- Scope: tests',
+      '- Applies when: writing tests',
+      '- Severity: SHOULD',
+      '- Rule: Prefer fixtures over mocks.',
+      '',
+    ].join('\n'),
+  )
+  // Partial catalog with a curated summary for ROOT-001 (ROOT-002 absent).
+  fs.writeFileSync(
+    path.join(dir, '.agents', 'rules-catalog.md'),
+    [
+      '# Catalog',
+      '',
+      '## Catalog',
+      '',
+      '| Rule ID | Layer | Scope | Severity | Source | Summary |',
+      '| --- | --- | --- | --- | --- | --- |',
+      '| `ROOT-001` | root | repository | MUST | [x](rules/root.md) | CURATED ONE |',
+      '',
+    ].join('\n'),
+  )
+
+  assert.equal(runScript(GENERATE, ['--root', dir, '--write']).status, 0)
+  const catalog = fs.readFileSync(
+    path.join(dir, '.agents', 'rules-catalog.md'),
+    'utf8',
+  )
+  // Curated summary preserved; new rule's summary derived (first sentence).
+  assert.match(catalog, /ROOT-001.*CURATED ONE/)
+  assert.match(catalog, /ROOT-002.*Prefer fixtures over mocks\./)
+  assert.doesNotMatch(catalog, /This second sentence is dropped/)
+  // The generated catalog must satisfy the validator.
+  assert.equal(runValidator(dir).status, 0, 'generated catalog should validate')
+})
+
+// --- scaffold-wiring ---
+test('scaffold-wiring writes the optional files when absent', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-scaffold-'))
+  assert.equal(runScript(SCAFFOLD, ['--root', dir]).status, 0)
+  for (const rel of [
+    '.agents/metrics/.gitignore',
+    '.github/workflows/rule-traceability.yml',
+    '.claude/settings.json',
+  ]) {
+    assert.ok(fs.existsSync(path.join(dir, rel)), `expected ${rel}`)
+  }
+})
+
+test('scaffold-wiring never overwrites an existing settings.json', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-scaffold-'))
+  fs.mkdirSync(path.join(dir, '.claude'), { recursive: true })
+  const sentinel = '{"keep":"me"}'
+  fs.writeFileSync(path.join(dir, '.claude', 'settings.json'), sentinel)
+  assert.equal(runScript(SCAFFOLD, ['--root', dir, '--hook']).status, 0)
+  assert.equal(
+    fs.readFileSync(path.join(dir, '.claude', 'settings.json'), 'utf8'),
+    sentinel,
+    'existing settings.json must be left untouched',
+  )
+  assert.ok(
+    fs.existsSync(path.join(dir, '.claude', 'settings.rule-traceability.json')),
+    'a .example settings file should be written instead',
+  )
+})

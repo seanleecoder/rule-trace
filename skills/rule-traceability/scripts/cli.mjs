@@ -14,6 +14,8 @@ const COMMANDS = {
   validate: 'validate-rules.mjs',
   parse: 'parse-traces.mjs',
   report: 'report.mjs',
+  catalog: 'generate-catalog.mjs',
+  scaffold: 'scaffold-wiring.mjs',
 }
 
 const HELP = `rule-traceability <command> [options]
@@ -27,6 +29,12 @@ Commands:
              Flags: --root <dir>  --transcripts <dir>  --out <file>
   report     Aggregate the event log into report.json + a dashboard.html.
              Flags: --root <dir>  --out-json <file>  --out-html <file>
+  catalog    Generate the rule catalog from the `## ID` headings (preserves
+             existing summaries). Prints a dry run; --write persists it.
+             Flags: --root <dir>  --write
+  scaffold   Write the optional operational wiring (metrics .gitignore, a CI job
+             that runs the validator, the Claude Code Stop hook). Non-destructive.
+             Flags: --root <dir>  --ci github|gitlab|none  --hook  --gitignore  --all
 
   init and migrate are agent-driven modes — open this skill (SKILL.md) in your
   coding agent and ask it to "init" rule traceability in a fresh repo or

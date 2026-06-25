@@ -50,7 +50,13 @@ node <skill>/scripts/validate-rules.mjs            # or: npx github:seanleecoder
 # Backfill usage counts from saved transcripts, then build the dashboard
 node <skill>/scripts/parse-traces.mjs
 node <skill>/scripts/report.mjs                    # writes .agents/metrics/report.json + dashboard.html
+# Generate the catalog from the rule headings (preserves curated summaries)
+node <skill>/scripts/generate-catalog.mjs --write
+# Scaffold optional wiring (CI job, metrics .gitignore, Stop hook) — non-destructive
+node <skill>/scripts/scaffold-wiring.mjs
 ```
+
+Subcommands are also exposed through the CLI: `npx github:seanleecoder/rule-traceability <validate|parse|report|catalog|scaffold>`.
 
 ## Counters
 

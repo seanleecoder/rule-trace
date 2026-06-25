@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.agents/skills/rule-traceability/scripts/record-trace.mjs\""
+          }
+        ]
+      }
+    ]
+  }
+}
