@@ -9,17 +9,29 @@ Behavioral evals for the **agent-driven** modes of the skill (`migrate` first). 
 - `grade.mjs` — the deterministic oracle: run after a migrate, scores by the validator + catalog/convention presence + rule count. `node evals/grade.mjs --root <migrated-dir> --json`.
 - `evals.json` — the eval prompts + assertions (deterministic + a few LLM-judge).
 
-## Running a round
+## Triggering it later — three modes
 
-For each eval, run an agent over a **copy** of the fixture (migrate mutates files), once **with the skill** and once **baseline** (no skill), then grade both:
+**1. Deterministic guards (no agent, runs in CI):**
 
 ```bash
-cp -R evals/fixtures/single-claude-md /tmp/rt-eval-1 && cd /tmp/rt-eval-1
-# with-skill: point an agent at skills/rule-traceability/SKILL.md and ask it to migrate this repo
-# baseline:   same prompt, no skill
-node <repo>/evals/grade.mjs --root /tmp/rt-eval-1 --json
+npm test          # unit tests + doc/script-integrity guards
 ```
 
-The signal is the **delta**: with-skill should score 1 (validator-clean traceable rule set); baseline should score 0 (no catalog / no ID scheme). The `skill-creator` skill automates the with/baseline spawn, grading, and a benchmark viewer.
+**2. Plan a round (no agent, no spend):** set up isolated fixture copies, print the exact migrate command per fixture, and grade whatever's there.
 
-These evals need an agent runtime (subagents / `claude -p`), so they are **not** part of the GitHub CI (which only runs the deterministic `/tests`). Run them on demand.
+```bash
+node evals/run.mjs
+```
+
+**3. Run a round (drives `claude -p`):** `--exec` actually performs the migrate, then grades. The signal is the **delta** — with-skill scores 1 (validator-clean traceable rule set), baseline scores 0.
+
+```bash
+node evals/fetch-oss.mjs --repo archtechx/tenancy   # once, for the oss fixture
+node evals/run.mjs --exec --fixtures single-claude-md,oss   # smaller round
+node evals/run.mjs --exec --baseline                        # full round, both arms
+node evals/run.mjs --grade-only                             # re-grade the current workspace
+```
+
+`--exec` needs an agent CLI on PATH (`claude`) and a permissive mode (the runner uses `--permission-mode bypassPermissions` on a throwaway copy). Or skip the runner entirely and **ask Claude Code**: "run the rule-traceability eval round (smaller/full)".
+
+The LLM modes are **not** in GitHub CI (no API key there); only mode 1 runs in CI. The grader (`grade.mjs`) and the synthetic fixtures are committed; `fixtures/oss/` and `.eval-workspace/` are git-ignored.
