@@ -20,8 +20,12 @@ import { fileURLToPath } from 'node:url'
 const here = path.dirname(fileURLToPath(import.meta.url))
 const TEMPLATES = path.join(here, '..', 'templates', 'wiring')
 
+const VALID_CI = ['github', 'gitlab', 'none']
+
 function parseArgs(argv) {
-  const args = { root: process.cwd(), ci: 'github', hook: false, gitignore: false, all: false, selected: false }
+  // ci starts null so it's only defaulted to 'github' in the no-selector / --all
+  // path. A selective run (--hook, --gitignore) must NOT also scaffold CI.
+  const args = { root: process.cwd(), ci: null, hook: false, gitignore: false, all: false, selected: false }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === '--root') args.root = path.resolve(argv[++i])
@@ -33,7 +37,14 @@ function parseArgs(argv) {
   if (!args.selected || args.all) {
     args.hook = true
     args.gitignore = true
-    if (args.ci === undefined) args.ci = 'github'
+    if (args.ci === null) args.ci = 'github'
+  }
+  // Fail fast on a typo'd selector rather than silently producing partial output.
+  if (args.ci !== null && !VALID_CI.includes(args.ci)) {
+    console.error(
+      `Unknown --ci value: ${args.ci === undefined ? '(missing)' : args.ci}. Expected one of: ${VALID_CI.join(', ')}.`,
+    )
+    process.exit(1)
   }
   return args
 }
@@ -80,8 +91,7 @@ if (args.hook) {
   } else {
     // Non-destructive: leave the existing settings untouched, drop an example.
     const exampleRel = '.claude/settings.rule-traceability.json'
-    fs.writeFileSync(path.join(args.root, exampleRel), tpl('stop-hook.settings.json'))
-    created.push(exampleRel)
+    writeIfAbsent(exampleRel, tpl('stop-hook.settings.json'), args.root)
     notes.push(
       `${settingsRel} already exists — merge the "hooks".Stop entry from ${exampleRel} into it (the live counter won't run until you do).`,
     )

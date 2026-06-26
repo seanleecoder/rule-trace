@@ -17,6 +17,9 @@ import { fileURLToPath } from 'node:url'
 import {
   RULE_ID_RE,
   parseTraceBlock,
+  expandGlob,
+  loadCatalog,
+  loadConfig,
 } from '../skills/rule-traceability/scripts/lib/rules.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -214,6 +217,10 @@ const SCAFFOLD = path.join(
   repoRoot,
   'skills/rule-traceability/scripts/scaffold-wiring.mjs',
 )
+const REPORT = path.join(
+  repoRoot,
+  'skills/rule-traceability/scripts/report.mjs',
+)
 
 function runScript(script, args = []) {
   const res = spawnSync(process.execPath, [script, ...args], {
@@ -315,4 +322,172 @@ test('cli.mjs loads and its help lists every subcommand', () => {
   for (const cmd of ['validate', 'parse', 'report', 'catalog', 'scaffold']) {
     assert.match(out, new RegExp(`\\b${cmd}\\b`), `help should list ${cmd}`)
   }
+})
+
+// --- scaffold selector scoping (regression: M1) ---
+// A selective flag must scaffold ONLY that piece; CI must not leak in via the
+// default. And a typo'd --ci must fail fast rather than produce partial output.
+test('scaffold-wiring --hook alone does not write the CI workflow or gitignore', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-scaffold-'))
+  assert.equal(runScript(SCAFFOLD, ['--root', dir, '--hook']).status, 0)
+  assert.ok(
+    fs.existsSync(path.join(dir, '.claude', 'settings.json')),
+    'the hook settings should be written',
+  )
+  assert.ok(
+    !fs.existsSync(path.join(dir, '.github', 'workflows', 'rule-traceability.yml')),
+    '--hook must not scaffold the CI workflow',
+  )
+  assert.ok(
+    !fs.existsSync(path.join(dir, '.agents', 'metrics', '.gitignore')),
+    '--hook must not scaffold the metrics .gitignore',
+  )
+})
+
+test('scaffold-wiring rejects an unknown --ci value', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-scaffold-'))
+  const { status, out } = runScript(SCAFFOLD, ['--root', dir, '--ci', 'banana'])
+  assert.equal(status, 1)
+  assert.match(out, /banana/)
+})
+
+// --- malformed importer (regression: L4) ---
+// A present-but-unparseable importer is a hard error, not a silent pass — so a
+// broken opencode.json can't slip through CI.
+test('validator errors on an unparseable opencode importer', () => {
+  const dir = writeFixture()
+  fs.mkdirSync(path.join(dir, '.opencode'), { recursive: true })
+  fs.writeFileSync(path.join(dir, '.opencode', 'opencode.json'), '{ not valid json ')
+  const { status, out } = runValidator(dir)
+  assert.equal(status, 1)
+  assert.match(out, /opencode\.json/)
+  assert.match(out, /could not be parsed|invalid JSON/i)
+})
+
+// --- dashboard coloring honors --low-rate (regression: L6) ---
+test('report colors a sub-threshold row "low" under a custom --low-rate', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-report-'))
+  fs.mkdirSync(path.join(dir, '.agents', 'metrics'), { recursive: true })
+  fs.writeFileSync(
+    path.join(dir, '.agents', 'rules-catalog.md'),
+    [
+      '# Catalog',
+      '',
+      '| Rule ID | Source |',
+      '| --- | --- |',
+      '| `ROOT-001` | rules/root.md |',
+      '',
+    ].join('\n'),
+  )
+  // 5 candidate events, 3 applied → application rate 0.6 (between 0.5 and 0.7).
+  const events = []
+  for (let i = 0; i < 5; i++) {
+    events.push(
+      JSON.stringify({
+        uuid: `u${i}`,
+        candidate: ['ROOT-001'],
+        applied: i < 3 ? ['ROOT-001'] : [],
+        deviations: [],
+      }),
+    )
+  }
+  fs.writeFileSync(
+    path.join(dir, '.agents', 'metrics', 'traces.jsonl'),
+    events.join('\n') + '\n',
+  )
+  const outHtml = path.join(dir, 'dash.html')
+  const { status, out } = runScript(REPORT, [
+    '--root',
+    dir,
+    '--low-rate',
+    '0.7',
+    '--out-html',
+    outHtml,
+  ])
+  assert.equal(status, 0, out)
+  const html = fs.readFileSync(outHtml, 'utf8')
+  // rate 0.6 < 0.7 → the row must carry the "low" class (it would be "ok" under
+  // the old hardcoded 0.5 threshold).
+  assert.match(html, /<tr class="low">/)
+})
+
+// --- loadCatalog source column (regression: L3) ---
+// Drive the real generator so loadCatalog's column index is pinned to the
+// generator's actual 6-column output (a reorder on either side would break this).
+test('loadCatalog reads the Source column, not Severity', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-l3-'))
+  fs.mkdirSync(path.join(dir, '.agents', 'rules'), { recursive: true })
+  fs.writeFileSync(
+    path.join(dir, '.agents', 'rules', 'root.md'),
+    [
+      '# Rules',
+      '',
+      '## ROOT-001',
+      '- Scope: repository',
+      '- Applies when: always',
+      '- Severity: MUST',
+      '- Rule: do the thing',
+      '',
+    ].join('\n'),
+  )
+  assert.equal(runScript(GENERATE, ['--root', dir, '--write']).status, 0)
+  const rows = loadCatalog(dir, loadConfig(dir))
+  const r = rows.find(x => x.id === 'ROOT-001')
+  assert.ok(r, 'ROOT-001 row present')
+  assert.match(r.source, /rules\/root\.md/, 'source must be the Source link')
+  assert.notEqual(r.source, 'MUST', 'source must not be the Severity column')
+  assert.equal(r.severity, 'MUST')
+})
+
+// --- expandGlob metacharacter escaping (regression: M2) ---
+// A glob segment containing both `*` and `()` must treat the parens literally.
+// deepEqual to a single path proves the fix neither under- nor over-matches.
+test('expandGlob escapes regex metacharacters in a wildcard segment', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-m2-'))
+  fs.mkdirSync(path.join(dir, 'feat-nightly(beta)'), { recursive: true })
+  fs.writeFileSync(path.join(dir, 'feat-nightly(beta)', 'x.md'), 'rule')
+  // Decoy without the literal "(beta)" suffix — must be excluded.
+  fs.mkdirSync(path.join(dir, 'featrandom'), { recursive: true })
+  fs.writeFileSync(path.join(dir, 'featrandom', 'x.md'), 'rule')
+  const matches = expandGlob(dir, 'feat*(beta)/x.md')
+  assert.deepEqual(matches, [path.join('feat-nightly(beta)', 'x.md')])
+})
+
+// --- scaffold selector scoping, --gitignore side (regression: M1 symmetry) ---
+test('scaffold-wiring --gitignore alone does not write the CI workflow or hook', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-scaffold-'))
+  assert.equal(runScript(SCAFFOLD, ['--root', dir, '--gitignore']).status, 0)
+  assert.ok(
+    fs.existsSync(path.join(dir, '.agents', 'metrics', '.gitignore')),
+    'the metrics .gitignore should be written',
+  )
+  assert.ok(
+    !fs.existsSync(path.join(dir, '.github', 'workflows', 'rule-traceability.yml')),
+    '--gitignore must not scaffold the CI workflow',
+  )
+  assert.ok(
+    !fs.existsSync(path.join(dir, '.claude', 'settings.json')),
+    '--gitignore must not scaffold the hook',
+  )
+})
+
+// --- scaffold leaves an existing .example untouched (regression: L5) ---
+test('scaffold-wiring does not overwrite an existing .example settings file', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-scaffold-'))
+  fs.mkdirSync(path.join(dir, '.claude'), { recursive: true })
+  fs.writeFileSync(path.join(dir, '.claude', 'settings.json'), '{"keep":"me"}')
+  const exampleSentinel = '{"example":"keep"}'
+  fs.writeFileSync(
+    path.join(dir, '.claude', 'settings.rule-traceability.json'),
+    exampleSentinel,
+  )
+  assert.equal(runScript(SCAFFOLD, ['--root', dir, '--hook']).status, 0)
+  assert.equal(
+    fs.readFileSync(
+      path.join(dir, '.claude', 'settings.rule-traceability.json'),
+      'utf8',
+    ),
+    exampleSentinel,
+    'an existing .example settings file must be left untouched',
+  )
 })

@@ -52,8 +52,13 @@ export function expandGlob(root, pattern) {
     for (const base of matches) {
       const abs = path.join(root, base)
       if (segment.includes('*')) {
+        // Escape every regex metacharacter (including *), then turn the now-escaped
+        // \* back into .* — so a literal segment like `app(legacy)` can't be
+        // mis-parsed as a regex group.
         const re = new RegExp(
-          '^' + segment.replace(/[.+]/g, '\\$&').replace(/\*/g, '.*') + '$',
+          '^' +
+            segment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '.*') +
+            '$',
         )
         let entries = []
         try {
@@ -157,7 +162,9 @@ export function loadCatalog(root, config) {
       id: idCell,
       layer: cells[1] || '',
       scope: cells[2] || '',
-      source: cells[3] || '',
+      // Columns are: Rule ID | Layer | Scope | Severity | Source | Summary,
+      // so the Source link is cell 4 (cell 3 is Severity).
+      source: cells[4] || '',
       severity:
         cells.find(c => /^(MUST|SHOULD|MAY)$/.test(c.replace(/`/g, ''))) ||
         null,
@@ -177,13 +184,17 @@ export function readImporterImports(root, importer) {
   if (!fs.existsSync(abs)) return null
   const content = fs.readFileSync(abs, 'utf8')
   if (importer.type === 'opencode-instructions') {
+    // A present-but-unparseable importer must be distinguishable from one that
+    // legitimately imports nothing ([]) — the caller turns this throw into a hard
+    // validation error so a broken config can't silently pass CI.
+    let json
     try {
-      const json = JSON.parse(content)
-      const list = Array.isArray(json.instructions) ? json.instructions : []
-      return list.map(normalizeImport)
-    } catch {
-      return []
+      json = JSON.parse(content)
+    } catch (err) {
+      throw new Error(`invalid JSON: ${err.message}`)
     }
+    const list = Array.isArray(json.instructions) ? json.instructions : []
+    return list.map(normalizeImport)
   }
   // at-import: lines of the form `@some/path.md`
   return content

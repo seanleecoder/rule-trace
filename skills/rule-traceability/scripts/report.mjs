@@ -160,7 +160,7 @@ function esc(s) {
   )
 }
 
-function buildHtml(data) {
+function buildHtml(data, lowRate = 0.5) {
   const rows = data.table
     .slice()
     .sort((a, b) => b.candidate - a.candidate || a.id.localeCompare(b.id))
@@ -172,7 +172,7 @@ function buildHtml(data) {
           ? 'dead'
           : t.applied === 0
             ? 'never'
-            : t.rate < 0.5
+            : t.rate < lowRate
               ? 'low'
               : 'ok'
       return `<tr class="${cls}">
@@ -258,7 +258,7 @@ const outHtml =
 fs.mkdirSync(path.dirname(outJson), { recursive: true })
 fs.writeFileSync(outJson, JSON.stringify(data, null, 2))
 fs.mkdirSync(path.dirname(outHtml), { recursive: true })
-fs.writeFileSync(outHtml, buildHtml(data))
+fs.writeFileSync(outHtml, buildHtml(data, opts.lowRate))
 
 console.log(
   `Aggregated ${data.totalTraces} trace block(s) over ${data.catalogSize} catalog rules.`,

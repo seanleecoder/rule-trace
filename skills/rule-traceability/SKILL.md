@@ -30,7 +30,7 @@ Goal: drop the convention in, create an empty catalog, seed one example rule, an
 
 1. Inspect the repo for existing agent entry points: `CLAUDE.md`, `AGENTS.md`, `.opencode/opencode.json`, `.cursorrules`, `.github/copilot-instructions.md`. If real rules already exist there, switch to **migrate** instead — don't scaffold over content.
 2. Copy `templates/traceability.md.tmpl` → `.agents/traceability.md`, `templates/rules-catalog.md.tmpl` → `.agents/rules-catalog.md`, and `templates/rule-file.md.tmpl` → `.agents/rules/root.md` (keep the one example rule so the layout is concrete).
-3. Wire every agent entry point present to load the rule files, in lockstep — see `references/importer-wiring.md`. The non-negotiable invariant: **all importers reference the identical set of files.** The validator enforces this.
+3. Wire every agent entry point present to load the rule files, in lockstep — see `references/importer-wiring.md`. The non-negotiable invariant: **all importers reference the identical set of files.** The validator enforces this. If the repo uses only one agent tool, set `importers` in `.agents/traceability.config.json` to just that entry so the validator doesn't warn about the absent ones.
 4. Run `node <skill>/scripts/validate-rules.mjs --root <repo>` and fix anything it reports.
 5. Optionally scaffold the operational wiring (a CI job that runs the validator, a metrics `.gitignore`, the Claude Code Stop hook) with `node <skill>/scripts/scaffold-wiring.mjs --root <repo>` — it's non-destructive. Offer this; don't force it.
 

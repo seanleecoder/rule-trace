@@ -52,7 +52,7 @@ Manual entry for a skills.sh / standalone install:
         "hooks": [
           {
             "type": "command",
-            "command": "node .agents/skills/rule-traceability/scripts/record-trace.mjs"
+            "command": "node \"$CLAUDE_PROJECT_DIR/.agents/skills/rule-traceability/scripts/record-trace.mjs\""
           }
         ]
       }

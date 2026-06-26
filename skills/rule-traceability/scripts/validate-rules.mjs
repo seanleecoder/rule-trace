@@ -126,7 +126,15 @@ function validate(root, opts) {
   // Importer parity: all importers must load the identical set of files.
   const importerSets = []
   for (const importer of config.importers) {
-    const imports = readImporterImports(root, importer)
+    let imports
+    try {
+      imports = readImporterImports(root, importer)
+    } catch (err) {
+      // Present but unparseable (e.g. malformed opencode.json) — a hard error, not
+      // a silent skip, so a broken importer can't pass the parity check unnoticed.
+      errors.push(`Importer ${importer.path} could not be parsed: ${err.message}`)
+      continue
+    }
     if (imports === null) {
       warnings.push(
         `Importer ${importer.path} not found; skipping parity check for it.`,
