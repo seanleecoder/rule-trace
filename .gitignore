@@ -1,5 +1,9 @@
 node_modules/
 .DS_Store
+# Real-project eval fixture (cloned on demand; not vendored)
+evals/fixtures/oss/
+# skill-creator eval workspace
+rule-traceability-workspace/
 # Generated metrics (only relevant inside consuming repos, never here)
 .agents/metrics/traces.jsonl
 .agents/metrics/report.json

@@ -1,0 +1,9 @@
+You are working on a Python FastAPI service.
+
+Conventions:
+1. Python 3.12. Dependencies are managed with uv; add packages with `uv add`, never edit requirements by hand.
+2. Format with ruff and run `ruff check --fix` before committing. Type-check with mypy in strict mode.
+3. Every endpoint must have a Pydantic request and response model — no raw dicts in or out.
+4. All database queries are async (SQLAlchemy async session). Never block the event loop with sync I/O.
+5. Secrets come from environment variables loaded via the settings module; never hardcode credentials or read os.environ directly in handlers.
+6. Tests use pytest and must cover both the happy path and at least one failure path for each endpoint.
