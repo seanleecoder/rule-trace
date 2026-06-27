@@ -1,6 +1,6 @@
 # The trace-block convention
 
-This is the portable convention an agent follows at response time. It is the de-coupled, project-agnostic version of a repo's `traceability.md`. When you `init` a repo, the template at `templates/traceability.md.tmpl` ships this convention into `.agents/traceability.md`.
+This is the portable convention an agent follows at response time. It is the de-coupled, project-agnostic version of a repo's `rule-trace.md`. When you `init` a repo, the template at `templates/rule-trace.md.tmpl` ships this convention into `.agents/rule-trace.md`.
 
 ## When to include a trace
 

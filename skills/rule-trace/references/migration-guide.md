@@ -35,7 +35,7 @@ Preserve concrete references (file paths, command names) from the source — the
 
 ## 5. Build the catalog and wire importers
 
-Create `.agents/rules-catalog.md` with one row per rule (`catalog-format.md`). Replace the scattered prose in the entry points with `@`-imports / `instructions` entries pointing at the new rule files (`importer-wiring.md`), keeping all importers in lockstep. Add `.agents/traceability.md` from the template so agents know to emit traces.
+Create `.agents/rules-catalog.md` with one row per rule (`catalog-format.md`). Replace the scattered prose in the entry points with `@`-imports / `instructions` entries pointing at the new rule files (`importer-wiring.md`), keeping all importers in lockstep. Add `.agents/rule-trace.md` from the template so agents know to emit traces.
 
 ## 6. Validate
 

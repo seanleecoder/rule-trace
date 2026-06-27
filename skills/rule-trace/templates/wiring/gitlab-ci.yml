@@ -1,0 +1,6 @@
+# Include from your top-level .gitlab-ci.yml:
+#   include: { local: '.gitlab/rule-trace.gitlab-ci.yml' }
+rule_trace:
+  stage: test
+  script:
+    - node .agents/skills/rule-trace/scripts/validate-rules.mjs

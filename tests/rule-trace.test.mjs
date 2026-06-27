@@ -1,4 +1,4 @@
-// Tests for the rule-traceability skill's scripts and plugin manifests.
+// Tests for the rule-trace skill's scripts and plugin manifests.
 // Run from the repo root with `node --test tests/*.test.mjs` (or `npm test`).
 //
 // These verify the skill's own code (the shared parsing/scanning library and the
@@ -6,27 +6,27 @@
 // marketplace manifests — everything that ships in this repo. Repo-content tests
 // (e.g. "this project's rules validate") belong to the consuming project, not here.
 
-import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { spawnSync } from 'node:child_process'
+import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 import {
   RULE_ID_RE,
-  parseTraceBlock,
   expandGlob,
   loadCatalog,
   loadConfig,
-} from '../skills/rule-traceability/scripts/lib/rules.mjs'
+  parseTraceBlock,
+} from '../skills/rule-trace/scripts/lib/rules.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(here, '..')
 const VALIDATOR = path.join(
   repoRoot,
-  'skills/rule-traceability/scripts/validate-rules.mjs',
+  'skills/rule-trace/scripts/validate-rules.mjs',
 )
 
 function runValidator(root, extraArgs = []) {
@@ -223,7 +223,7 @@ test('plugin.json and marketplace.json carry required fields and point at a real
   }
 
   assert.ok(
-    fs.existsSync(path.join(repoRoot, 'skills/rule-traceability/SKILL.md')),
+    fs.existsSync(path.join(repoRoot, 'skills/rule-trace/SKILL.md')),
     'the referenced skill SKILL.md must exist',
   )
 })
@@ -231,15 +231,15 @@ test('plugin.json and marketplace.json carry required fields and point at a real
 // --- catalog generator ---
 const GENERATE = path.join(
   repoRoot,
-  'skills/rule-traceability/scripts/generate-catalog.mjs',
+  'skills/rule-trace/scripts/generate-catalog.mjs',
 )
 const SCAFFOLD = path.join(
   repoRoot,
-  'skills/rule-traceability/scripts/scaffold-wiring.mjs',
+  'skills/rule-trace/scripts/scaffold-wiring.mjs',
 )
 const REPORT = path.join(
   repoRoot,
-  'skills/rule-traceability/scripts/report.mjs',
+  'skills/rule-trace/scripts/report.mjs',
 )
 
 function runScript(script, args = []) {
@@ -305,7 +305,7 @@ test('scaffold-wiring writes the optional files when absent', () => {
   assert.equal(runScript(SCAFFOLD, ['--root', dir]).status, 0)
   for (const rel of [
     '.agents/metrics/.gitignore',
-    '.github/workflows/rule-traceability.yml',
+    '.github/workflows/rule-trace.yml',
     '.claude/settings.json',
   ]) {
     assert.ok(fs.existsSync(path.join(dir, rel)), `expected ${rel}`)
@@ -324,7 +324,7 @@ test('scaffold-wiring never overwrites an existing settings.json', () => {
     'existing settings.json must be left untouched',
   )
   assert.ok(
-    fs.existsSync(path.join(dir, '.claude', 'settings.rule-traceability.json')),
+    fs.existsSync(path.join(dir, '.claude', 'settings.rule-trace.json')),
     'a .example settings file should be written instead',
   )
 })
@@ -335,7 +335,7 @@ test('scaffold-wiring never overwrites an existing settings.json', () => {
 test('cli.mjs loads and its help lists every subcommand', () => {
   const CLI = path.join(
     repoRoot,
-    'skills/rule-traceability/scripts/cli.mjs',
+    'skills/rule-trace/scripts/cli.mjs',
   )
   const { status, out } = runScript(CLI, ['--help'])
   assert.equal(status, 0, out)
@@ -355,7 +355,7 @@ test('scaffold-wiring --hook alone does not write the CI workflow or gitignore',
     'the hook settings should be written',
   )
   assert.ok(
-    !fs.existsSync(path.join(dir, '.github', 'workflows', 'rule-traceability.yml')),
+    !fs.existsSync(path.join(dir, '.github', 'workflows', 'rule-trace.yml')),
     '--hook must not scaffold the CI workflow',
   )
   assert.ok(
@@ -482,7 +482,7 @@ test('scaffold-wiring --gitignore alone does not write the CI workflow or hook',
     'the metrics .gitignore should be written',
   )
   assert.ok(
-    !fs.existsSync(path.join(dir, '.github', 'workflows', 'rule-traceability.yml')),
+    !fs.existsSync(path.join(dir, '.github', 'workflows', 'rule-trace.yml')),
     '--gitignore must not scaffold the CI workflow',
   )
   assert.ok(
@@ -498,13 +498,13 @@ test('scaffold-wiring does not overwrite an existing .example settings file', ()
   fs.writeFileSync(path.join(dir, '.claude', 'settings.json'), '{"keep":"me"}')
   const exampleSentinel = '{"example":"keep"}'
   fs.writeFileSync(
-    path.join(dir, '.claude', 'settings.rule-traceability.json'),
+    path.join(dir, '.claude', 'settings.rule-trace.json'),
     exampleSentinel,
   )
   assert.equal(runScript(SCAFFOLD, ['--root', dir, '--hook']).status, 0)
   assert.equal(
     fs.readFileSync(
-      path.join(dir, '.claude', 'settings.rule-traceability.json'),
+      path.join(dir, '.claude', 'settings.rule-trace.json'),
       'utf8',
     ),
     exampleSentinel,

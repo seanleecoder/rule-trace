@@ -4,7 +4,7 @@ node_modules/
 evals/fixtures/oss/
 # eval workspaces (fixture copies the runner mutates)
 .eval-workspace/
-rule-traceability-workspace/
+rule-trace-workspace/
 # Generated metrics (only relevant inside consuming repos, never here)
 .agents/metrics/traces.jsonl
 .agents/metrics/report.json

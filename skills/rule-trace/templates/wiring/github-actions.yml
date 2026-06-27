@@ -1,4 +1,4 @@
-name: rule-traceability
+name: rule-trace
 on: [push, pull_request]
 jobs:
   validate:
@@ -8,4 +8,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: node .agents/skills/rule-traceability/scripts/validate-rules.mjs
+      - run: node .agents/skills/rule-trace/scripts/validate-rules.mjs

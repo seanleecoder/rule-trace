@@ -129,7 +129,7 @@ if (fs.existsSync(catalogAbs)) {
     out = [...lines.slice(0, start), ...table.split('\n'), ...lines.slice(end)].join('\n')
   }
 } else {
-  out = `# Rule Traceability Catalog\n\nDiscovery index for every rule ID. Generated from the rule headings by \`generate-catalog.mjs\` and guarded by \`validate-rules.mjs\`.\n\n## Catalog\n\n${table}\n`
+  out = `# Rule Trace Catalog\n\nDiscovery index for every rule ID. Generated from the rule headings by \`generate-catalog.mjs\` and guarded by \`validate-rules.mjs\`.\n\n## Catalog\n\n${table}\n`
 }
 
 fs.mkdirSync(path.dirname(catalogAbs), { recursive: true })

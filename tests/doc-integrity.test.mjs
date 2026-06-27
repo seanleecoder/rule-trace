@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(here, '..')
-const skillDir = path.join(repoRoot, 'skills', 'rule-traceability')
+const skillDir = path.join(repoRoot, 'skills', 'rule-trace')
 const scriptsDir = path.join(skillDir, 'scripts')
 
 function walk(dir, pred) {

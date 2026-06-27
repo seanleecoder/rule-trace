@@ -196,7 +196,7 @@ function buildHtml(data, lowRate = 0.5) {
   const flags = data.flags
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Rule traceability — usage report</title>
+<title>Rule tracing — usage report</title>
 <style>
   :root { color-scheme: light dark; }
   body { font: 15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; margin: 0; padding: 2rem; max-width: 1000px; margin-inline: auto; }
@@ -226,7 +226,7 @@ function buildHtml(data, lowRate = 0.5) {
   .note { background: rgba(219,180,68,.12); border-left: 3px solid #db4; padding: .75rem 1rem; border-radius: 4px; margin-bottom: 1.5rem; font-size: .9rem; }
 </style></head>
 <body>
-  <h1>Rule traceability — usage report</h1>
+  <h1>Rule tracing — usage report</h1>
   <p class="sub">Generated ${esc(data.generatedAt)}</p>
   <div class="note">Counts are self-reported by the model — they record what it <em>claimed</em> it applied, not proof it complied. Use this as a review surface. A rule never surfaced as a candidate is invisible here (false absence), so low totals early on are expected.</div>
   <div class="stats">

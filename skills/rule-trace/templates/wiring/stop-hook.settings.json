@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.agents/skills/rule-traceability/scripts/record-trace.mjs\""
+            "command": "node \"$CLAUDE_PROJECT_DIR/.agents/skills/rule-trace/scripts/record-trace.mjs\""
           }
         ]
       }

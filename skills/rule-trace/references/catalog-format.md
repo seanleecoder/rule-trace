@@ -29,7 +29,7 @@ It fills ID, Layer (from the ID prefix family), Scope and Severity (from each ru
 
 ## The layout config
 
-The scripts resolve repo layout from an optional `.agents/traceability.config.json`. Omit it to accept the conventional defaults:
+The scripts resolve repo layout from an optional `.agents/rule-trace.config.json`. Omit it to accept the conventional defaults:
 
 ```json
 {

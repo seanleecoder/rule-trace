@@ -10,7 +10,7 @@ Each agent tool has its own entry point, but they must all load the **identical 
 @.agents/architecture.md
 @.agents/rules/root.md
 @.agents/rules/testing.md
-@.agents/traceability.md
+@.agents/rule-trace.md
 ```
 
 **`.opencode/opencode.json`** (OpenCode) uses a flat `instructions` array with the same paths:
@@ -22,7 +22,7 @@ Each agent tool has its own entry point, but they must all load the **identical 
     ".agents/architecture.md",
     ".agents/rules/root.md",
     ".agents/rules/testing.md",
-    ".agents/traceability.md"
+    ".agents/rule-trace.md"
   ]
 }
 ```
@@ -37,7 +37,7 @@ Other tools (`.cursorrules`, `.github/copilot-instructions.md`) can be added to 
 
 The live counter is a `Stop` hook. How it gets wired depends on how the skill was installed:
 
-- **Installed as a Claude Code plugin** (`/plugin install`): the hook ships in the plugin's `hooks/hooks.json` (command `node "${CLAUDE_PLUGIN_ROOT}/skills/rule-traceability/scripts/record-trace.mjs"`) and is wired automatically — nothing to do.
+- **Installed as a Claude Code plugin** (`/plugin install`): the hook ships in the plugin's `hooks/hooks.json` (command `node "${CLAUDE_PLUGIN_ROOT}/skills/rule-trace/scripts/record-trace.mjs"`) and is wired automatically — nothing to do.
 - **Installed via skills.sh or standalone** (the skill folder lives at `.agents/skills/` with a `.claude/skills/` symlink, but no plugin): add the hook by hand to `.claude/settings.json` (project) or `~/.claude/settings.json` (user), as below.
 
 Other agents (OpenCode, Codex) have no equivalent Stop hook; collect their counts with the offline parser instead (`parse-traces.mjs --transcripts <their transcript dir>`).
@@ -52,7 +52,7 @@ Manual entry for a skills.sh / standalone install:
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.agents/skills/rule-traceability/scripts/record-trace.mjs\""
+            "command": "node \"$CLAUDE_PROJECT_DIR/.agents/skills/rule-trace/scripts/record-trace.mjs\""
           }
         ]
       }

@@ -75,9 +75,9 @@ if (args.gitignore) {
 }
 
 if (args.ci === 'github') {
-  writeIfAbsent('.github/workflows/rule-traceability.yml', tpl('github-actions.yml'), args.root)
+  writeIfAbsent('.github/workflows/rule-trace.yml', tpl('github-actions.yml'), args.root)
 } else if (args.ci === 'gitlab') {
-  const rel = '.gitlab/rule-traceability.gitlab-ci.yml'
+  const rel = '.gitlab/rule-trace.gitlab-ci.yml'
   if (writeIfAbsent(rel, tpl('gitlab-ci.yml'), args.root)) {
     notes.push(`Add to your .gitlab-ci.yml:  include: { local: '${rel}' }`)
   }
@@ -90,7 +90,7 @@ if (args.hook) {
     writeIfAbsent(settingsRel, tpl('stop-hook.settings.json'), args.root)
   } else {
     // Non-destructive: leave the existing settings untouched, drop an example.
-    const exampleRel = '.claude/settings.rule-traceability.json'
+    const exampleRel = '.claude/settings.rule-trace.json'
     writeIfAbsent(exampleRel, tpl('stop-hook.settings.json'), args.root)
     notes.push(
       `${settingsRel} already exists — merge the "hooks".Stop entry from ${exampleRel} into it (the live counter won't run until you do).`,
@@ -98,7 +98,7 @@ if (args.hook) {
   }
 }
 
-console.log('Scaffolded rule-traceability wiring:')
+console.log('Scaffolded rule-trace wiring:')
 for (const c of created) console.log(`  + ${c}`)
 for (const s of skipped) console.log(`  · ${s} (exists, left untouched)`)
 for (const n of notes) console.log(`  ! ${n}`)

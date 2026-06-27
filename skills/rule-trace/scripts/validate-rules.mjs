@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Deterministic validator for a rule-traceability system.
+// Deterministic validator for a rule-trace system.
 //
 // Default mode checks the integrity of the rule set so the blog's stated
 // failure mode — "anchors break if rule headings move" — is caught in CI
@@ -194,7 +194,7 @@ function report(result, json) {
     for (const i of result.info) console.log(`  ${i}`)
     for (const w of result.warnings) console.log(`  ⚠ ${w}`)
     for (const e of result.errors) console.log(`  ✗ ${e}`)
-    if (!result.errors.length) console.log('  ✓ rule traceability check passed')
+    if (!result.errors.length) console.log('  ✓ rule tracing check passed')
   }
   return result.errors.length ? 1 : 0
 }

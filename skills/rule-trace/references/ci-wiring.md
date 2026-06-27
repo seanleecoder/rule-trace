@@ -9,7 +9,7 @@ The validator lives at `<skill>/scripts/validate-rules.mjs` and defaults `--root
 Node CLI (works without the agent runtime, version-pinnable):
 
 ```bash
-npx github:<owner>/rule-traceability validate          # or: validate --no-severity / --lint-file <path>
+npx github:<owner>/rule-trace validate          # or: validate --no-severity / --lint-file <path>
 ```
 
 Or a package script (when the skill is vendored/installed at `.agents/skills/`):
@@ -17,7 +17,7 @@ Or a package script (when the skill is vendored/installed at `.agents/skills/`):
 ```json
 {
   "scripts": {
-    "rules:validate": "node .agents/skills/rule-traceability/scripts/validate-rules.mjs"
+    "rules:validate": "node .agents/skills/rule-trace/scripts/validate-rules.mjs"
   }
 }
 ```
@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
-      - run: npx github:<owner>/rule-traceability validate
+      - run: npx github:<owner>/rule-trace validate
 ```
 
 **GitLab CI** (a job alongside your existing lint/test jobs):
@@ -47,7 +47,7 @@ jobs:
 rules_validate:
   stage: test
   script:
-    - node .agents/skills/rule-traceability/scripts/validate-rules.mjs
+    - node .agents/skills/rule-trace/scripts/validate-rules.mjs
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "main"
@@ -64,8 +64,8 @@ If installed as a **plugin**, the `Stop` hook ships in `hooks/hooks.json` and is
 There's no cross-agent Stop hook, so collect counts offline from saved transcripts:
 
 ```bash
-node .agents/skills/rule-traceability/scripts/parse-traces.mjs --transcripts <that agent's transcript dir>
-node .agents/skills/rule-traceability/scripts/report.mjs
+node .agents/skills/rule-trace/scripts/parse-traces.mjs --transcripts <that agent's transcript dir>
+node .agents/skills/rule-trace/scripts/report.mjs
 ```
 
 `parse-traces.mjs` dedupes by message UUID, so it's safe to re-run and to combine with the live hook.

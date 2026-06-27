@@ -1,13 +1,13 @@
 {
   "name": "seanleecoder-skills",
-  "description": "Personal marketplace hosting the rule-traceability plugin: stable rule IDs, trace blocks, usage counters, and a deterministic validator.",
+  "description": "Personal marketplace hosting the rule-trace plugin: stable rule IDs, trace blocks, usage counters, and a deterministic validator.",
   "owner": {
     "name": "Sean Lee",
     "url": "https://github.com/seanleecoder"
   },
   "plugins": [
     {
-      "name": "rule-traceability",
+      "name": "rule-trace",
       "source": "./",
       "description": "Stable rule IDs, trace blocks, usage counters, and a deterministic validator that make agent rule application visible and auditable."
     }

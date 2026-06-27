@@ -15,10 +15,10 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
-import { loadConfig, scanRuleHeadings, loadCatalog } from '../skills/rule-traceability/scripts/lib/rules.mjs'
+import { loadConfig, scanRuleHeadings, loadCatalog } from '../skills/rule-trace/scripts/lib/rules.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const VALIDATOR = path.resolve(here, '..', 'skills/rule-traceability/scripts/validate-rules.mjs')
+const VALIDATOR = path.resolve(here, '..', 'skills/rule-trace/scripts/validate-rules.mjs')
 
 function parseArgs(argv) {
   const args = { root: process.cwd(), json: false }
@@ -56,7 +56,7 @@ const catalogRows = (() => {
   }
 })()
 const catalogExists = fs.existsSync(path.join(args.root, config.catalogPath))
-const conventionExists = fs.existsSync(path.join(args.root, '.agents/traceability.md'))
+const conventionExists = fs.existsSync(path.join(args.root, '.agents/rule-trace.md'))
 
 const validatorPass = (validator.errors || []).length === 0
 const score = validatorPass && catalogExists && conventionExists && ruleCount > 0 ? 1 : 0

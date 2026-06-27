@@ -32,6 +32,6 @@ node evals/run.mjs --exec --baseline                        # full round, both a
 node evals/run.mjs --grade-only                             # re-grade the current workspace
 ```
 
-`--exec` needs an agent CLI on PATH (`claude`) and a permissive mode (the runner uses `--permission-mode bypassPermissions` on a throwaway copy). Or skip the runner entirely and **ask Claude Code**: "run the rule-traceability eval round (smaller/full)".
+`--exec` needs an agent CLI on PATH (`claude`) and a permissive mode (the runner uses `--permission-mode bypassPermissions` on a throwaway copy). Or skip the runner entirely and **ask Claude Code**: "run the rule-trace eval round (smaller/full)".
 
 The LLM modes are **not** in GitHub CI (no API key there); only mode 1 runs in CI. The grader (`grade.mjs`) and the synthetic fixtures are committed; `fixtures/oss/` and `.eval-workspace/` are git-ignored.

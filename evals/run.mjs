@@ -23,8 +23,8 @@ import { spawnSync } from 'node:child_process'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(here, '..')
-const SKILL = path.join(repoRoot, 'skills/rule-traceability/SKILL.md')
-const VALIDATOR = path.join(repoRoot, 'skills/rule-traceability/scripts/validate-rules.mjs')
+const SKILL = path.join(repoRoot, 'skills/rule-trace/SKILL.md')
+const VALIDATOR = path.join(repoRoot, 'skills/rule-trace/scripts/validate-rules.mjs')
 const GRADE = path.join(here, 'grade.mjs')
 
 function parseArgs(argv) {
@@ -46,12 +46,12 @@ const selected = evalsDef.evals.filter(e => !args.fixtures || args.fixtures.incl
 
 function withSkillPrompt(dir) {
   return [
-    `Read the rule-traceability skill at ${SKILL} and the references it points to`,
+    `Read the rule-trace skill at ${SKILL} and the references it points to`,
     `(especially references/migration-guide.md and references/rule-anatomy.md), then perform`,
     `its **migrate** mode on the repo at ${dir} — work entirely within that directory.`,
     `Split the existing prose rules into discrete rules with layered stable IDs and the rule`,
     `anatomy (Scope / Applies when / Severity / Rule); create .agents/rules/*.md, a synced`,
-    `.agents/rules-catalog.md (you may run the skill's generate-catalog.mjs) and .agents/traceability.md;`,
+    `.agents/rules-catalog.md (you may run the skill's generate-catalog.mjs) and .agents/rule-trace.md;`,
     `rewire the entry points as thin importers. Do NOT invent rules. Make this pass:`,
     `node ${VALIDATOR} --root ${dir}`,
   ].join(' ')

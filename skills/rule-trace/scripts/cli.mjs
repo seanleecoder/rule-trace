@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Thin CLI dispatcher so the deterministic tooling is runnable without a coding
-// agent — e.g. in CI via `npx github:seanleecoder/rule-traceability validate`.
+// agent — e.g. in CI via `npx github:seanleecoder/rule-trace validate`.
 // Delegates to the sibling scripts; no logic lives here.
 
 import { spawnSync } from 'node:child_process'
@@ -18,7 +18,7 @@ const COMMANDS = {
   scaffold: 'scaffold-wiring.mjs',
 }
 
-const HELP = `rule-traceability <command> [options]
+const HELP = `rule-trace <command> [options]
 
 Commands:
   validate   Validate the rule system: every catalog ID resolves to a heading,
@@ -37,7 +37,7 @@ Commands:
              Flags: --root <dir>  --ci github|gitlab|none  --hook  --gitignore  --all
 
   init and migrate are agent-driven modes — open this skill (SKILL.md) in your
-  coding agent and ask it to "init" rule traceability in a fresh repo or
+  coding agent and ask it to "init" rule tracing in a fresh repo or
   "migrate" an existing repo's rules into the traceable format.
 
 All commands default --root to the current directory.`

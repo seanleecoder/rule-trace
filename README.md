@@ -1,10 +1,10 @@
-# rule-traceability
+# rule-trace
 
 See which agent rules actually shaped the work.
 
 `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, and tool configs are easy to grow and hard to debug. After a few weeks, you usually cannot tell which instructions are still useful, which ones are noise, or whether Claude, OpenCode, Codex, Cursor, and other tools are even loading the same rules.
 
-`rule-traceability` turns agent rules into a reviewable loop:
+`rule-trace` turns agent rules into a reviewable loop:
 
 1. Migrate prose rules into stable, citable IDs.
 2. Ask agents to disclose which rules were candidates, applied, or deliberately skipped.
@@ -113,22 +113,22 @@ Optional adoption support:
 Use [skills.sh](https://skills.sh) for the normal install path:
 
 ```bash
-npx skills add seanleecoder/rule-traceability
+npx skills add seanleecoder/rule-trace
 ```
 
-This installs into every detected agent at once, such as Claude Code under `.claude/skills/` and OpenCode/Codex/Cursor under `.agents/skills/`. Add `-g` for a global install, or `--copy` to copy instead of symlink. Update later with `npx skills update rule-traceability`.
+This installs into every detected agent at once, such as Claude Code under `.claude/skills/` and OpenCode/Codex/Cursor under `.agents/skills/`. Add `-g` for a global install, or `--copy` to copy instead of symlink. Update later with `npx skills update rule-trace`.
 
 For CI-only validation, use the package CLI without an agent runtime:
 
 ```bash
-npx github:seanleecoder/rule-traceability validate
+npx github:seanleecoder/rule-trace validate
 ```
 
 For Claude Code live counting, install the plugin:
 
 ```text
-/plugin marketplace add seanleecoder/rule-traceability
-/plugin install rule-traceability@seanleecoder-skills
+/plugin marketplace add seanleecoder/rule-trace
+/plugin install rule-trace@seanleecoder-skills
 ```
 
 The plugin ships a `Stop` hook in [`hooks/hooks.json`](hooks/hooks.json), so finished Claude Code responses can be recorded live.
@@ -138,14 +138,14 @@ The plugin ships a `Stop` hook in [`hooks/hooks.json`](hooks/hooks.json), so fin
 Once installed, ask your agent to migrate an existing repo:
 
 ```text
-use rule-traceability to migrate this repo's rules
+use rule-trace to migrate this repo's rules
 ```
 
 Useful starting points:
 
 - **Existing rules:** ask for `migrate`. The agent gathers `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.opencode/opencode.json`, package READMEs, and any docs you point it at, then splits prose into ID-based rules.
-- **No existing system:** ask for `init`. The agent creates `.agents/traceability.md`, `.agents/rules-catalog.md`, an example `.agents/rules/root.md`, and optional thin importers.
-- **Just validate:** run `rule-traceability validate` or `node <skill>/scripts/validate-rules.mjs` from the target repo root.
+- **No existing system:** ask for `init`. The agent creates `.agents/rule-trace.md`, `.agents/rules-catalog.md`, an example `.agents/rules/root.md`, and optional thin importers.
+- **Just validate:** run `rule-trace validate` or `node <skill>/scripts/validate-rules.mjs` from the target repo root.
 - **Just count usage:** run `parse` to backfill traces from transcripts, then `report` to build the report and dashboard.
 - **Ready to clean up:** after you have enough trace data, ask for `audit` to classify rules as keep, revise, remove, consolidate, or add.
 
@@ -170,7 +170,7 @@ node <skill>/scripts/generate-catalog.mjs --root <repo> --write
 The CLI exposes the same core tools:
 
 ```bash
-npx github:seanleecoder/rule-traceability <validate|parse|report|catalog|scaffold>
+npx github:seanleecoder/rule-trace <validate|parse|report|catalog|scaffold>
 ```
 
 ## Counters And Dashboard
@@ -203,19 +203,19 @@ The dashboard highlights:
 - Malformed OpenCode config when `.opencode/opencode.json` is present.
 - Trace blocks that cite IDs missing from the catalog when using `--lint-file <path>`.
 
-It warns, but does not fail, when configured importers are absent or numbered IDs have gaps. If a repo intentionally uses only one agent tool, set `importers` in `.agents/traceability.config.json` to just that entry so validation stays quiet.
+It warns, but does not fail, when configured importers are absent or numbered IDs have gaps. If a repo intentionally uses only one agent tool, set `importers` in `.agents/rule-trace.config.json` to just that entry so validation stays quiet.
 
 Example package script:
 
 ```json
 {
   "scripts": {
-    "rules:validate": "node .agents/skills/rule-traceability/scripts/validate-rules.mjs"
+    "rules:validate": "node .agents/skills/rule-trace/scripts/validate-rules.mjs"
   }
 }
 ```
 
-More CI snippets live in `skills/rule-traceability/references/ci-wiring.md`.
+More CI snippets live in `skills/rule-trace/references/ci-wiring.md`.
 
 ## Optional Scaffolding
 

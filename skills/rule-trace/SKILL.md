@@ -1,11 +1,11 @@
 ---
-name: rule-traceability
-description: Make AI-agent rule application visible and auditable using stable rule IDs, a catalog, trace blocks, usage counters, and a deterministic validator. Use this whenever someone wants to add rule traceability to a repo, turn existing agent rules (CLAUDE.md, AGENTS.md, .cursorrules, .agents/, scattered docs) into a traceable ID-based format, track or count how often each rule is considered vs applied, audit which rules are noise or dead, validate that a rule catalog and its importers haven't drifted, or build a report/dashboard of rule usage. Triggers on phrases like "rule traceability", "trace which rules were applied", "stable rule IDs", "rules catalog", "parse my rules", "which rules never fire", "rule usage metrics", or wiring rules across multiple agent tools.
+name: rule-trace
+description: Make AI-agent rule application visible and auditable using stable rule IDs, a catalog, trace blocks, usage counters, and a deterministic validator. Use this whenever someone wants to add rule tracing to a repo, turn existing agent rules (CLAUDE.md, AGENTS.md, .cursorrules, .agents/, scattered docs) into a traceable ID-based format, track or count how often each rule is considered vs applied, audit which rules are noise or dead, validate that a rule catalog and its importers haven't drifted, or build a report/dashboard of rule usage. Triggers on phrases like "rule tracing", "trace which rules were applied", "stable rule IDs", "rules catalog", "parse my rules", "which rules never fire", "rule usage metrics", or wiring rules across multiple agent tools.
 version: 1.0.0
 license: MIT
 ---
 
-# Rule Traceability
+# Rule Trace
 
 Rules loaded into an agent are *loaded* context, not *applied* context — a rule that was followed looks identical to one that was ignored. This skill closes that gap. Every rule gets a **stable ID** anchored at a markdown heading; an agent that does real work appends a **trace block** disclosing which in-scope rules it considered (*candidates*) versus which it actually let constrain the work (*applied*); a **catalog** indexes every ID; deterministic **scripts** validate the system and **count** candidate-vs-applied usage across sessions so dead and miscoped rules become visible.
 
@@ -17,20 +17,20 @@ Read the user's intent and route to one mode. Each links the reference you shoul
 
 | Intent | Mode | Read first |
 | --- | --- | --- |
-| Add traceability to a repo that has none | **init** | `references/convention.md`, `references/importer-wiring.md` |
+| Add rule tracing to a repo that has none | **init** | `references/convention.md`, `references/importer-wiring.md` |
 | Convert existing/scattered rules into the traceable format | **migrate** | `references/migration-guide.md`, `references/rule-anatomy.md` |
 | Maintain/clean an existing rule set, using usage data as evidence | **audit** | `references/catalog-format.md`, plus the report (below) |
 | Count usage and build the dashboard | **report** | this file's "Counters" section |
 
-The deterministic scripts live in `scripts/` and are portable (Node ≥ 18, no dependencies). They resolve repo layout from an optional `.agents/traceability.config.json` (see `references/catalog-format.md`), falling back to the conventional layout. Run them from the target repo root, or pass `--root <dir>`.
+The deterministic scripts live in `scripts/` and are portable (Node ≥ 18, no dependencies). They resolve repo layout from an optional `.agents/rule-trace.config.json` (see `references/catalog-format.md`), falling back to the conventional layout. Run them from the target repo root, or pass `--root <dir>`.
 
 ## init — scaffold a fresh system
 
 Goal: drop the convention in, create an empty catalog, seed one example rule, and wire the importers.
 
 1. Inspect the repo for existing agent entry points: `CLAUDE.md`, `AGENTS.md`, `.opencode/opencode.json`, `.cursorrules`, `.github/copilot-instructions.md`. If real rules already exist there, switch to **migrate** instead — don't scaffold over content.
-2. Copy `templates/traceability.md.tmpl` → `.agents/traceability.md`, `templates/rules-catalog.md.tmpl` → `.agents/rules-catalog.md`, and `templates/rule-file.md.tmpl` → `.agents/rules/root.md` (keep the one example rule so the layout is concrete).
-3. Wire every agent entry point present to load the rule files, in lockstep — see `references/importer-wiring.md`. The non-negotiable invariant: **all importers reference the identical set of files.** The validator enforces this. If the repo uses only one agent tool, set `importers` in `.agents/traceability.config.json` to just that entry so the validator doesn't warn about the absent ones.
+2. Copy `templates/rule-trace.md.tmpl` → `.agents/rule-trace.md`, `templates/rules-catalog.md.tmpl` → `.agents/rules-catalog.md`, and `templates/rule-file.md.tmpl` → `.agents/rules/root.md` (keep the one example rule so the layout is concrete).
+3. Wire every agent entry point present to load the rule files, in lockstep — see `references/importer-wiring.md`. The non-negotiable invariant: **all importers reference the identical set of files.** The validator enforces this. If the repo uses only one agent tool, set `importers` in `.agents/rule-trace.config.json` to just that entry so the validator doesn't warn about the absent ones.
 4. Run `node <skill>/scripts/validate-rules.mjs --root <repo>` and fix anything it reports.
 5. Optionally scaffold the operational wiring (a CI job that runs the validator, a metrics `.gitignore`, the Claude Code Stop hook) with `node <skill>/scripts/scaffold-wiring.mjs --root <repo>` — it's non-destructive. Offer this; don't force it.
 

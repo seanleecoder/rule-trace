@@ -1,7 +1,7 @@
-// Shared, dependency-free helpers for the rule-traceability tooling.
+// Shared, dependency-free helpers for the rule-trace tooling.
 //
 // Everything here is portable: no repo-specific paths are hard-coded. Layout is
-// resolved from an optional `.agents/traceability.config.json`, falling back to
+// resolved from an optional `.agents/rule-trace.config.json`, falling back to
 // the conventional layout shipped by this skill. The validator, the offline
 // transcript parser, the Stop-hook recorder, and the report builder all import
 // from here so a rule ID is parsed and validated identically everywhere.
@@ -32,7 +32,7 @@ export const DEFAULT_CONFIG = {
 }
 
 export function loadConfig(root) {
-  const configPath = path.join(root, '.agents', 'traceability.config.json')
+  const configPath = path.join(root, '.agents', 'rule-trace.config.json')
   if (!fs.existsSync(configPath)) return { ...DEFAULT_CONFIG }
   try {
     const parsed = JSON.parse(fs.readFileSync(configPath, 'utf8'))
