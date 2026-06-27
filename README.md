@@ -2,18 +2,16 @@
 
 See which agent rules actually shaped the work.
 
-`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, and tool configs are easy to grow and hard to debug. After a few weeks, you usually cannot tell which instructions are still useful, which ones are noise, or whether Claude, OpenCode, Codex, and Cursor are even loading the same rules.
+`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, and tool configs are easy to grow and hard to debug. After a few weeks, you usually cannot tell which instructions are still useful, which ones are noise, or whether Claude, OpenCode, Codex, Cursor, and other tools are even loading the same rules.
 
-`rule-traceability` turns agent rules into something you can cite, validate, count, and clean up.
+`rule-traceability` turns agent rules into a reviewable loop:
 
-Rules loaded into a coding agent are *loaded* context, not *applied* context. A rule that was followed looks identical to one that was ignored. This skill closes that gap with stable rule IDs, response-time trace blocks, usage counters, and a deterministic validator.
+1. Migrate prose rules into stable, citable IDs.
+2. Ask agents to disclose which rules were candidates, applied, or deliberately skipped.
+3. Validate that the catalog, rule files, and importers have not drifted.
+4. Report usage so dead, broad, skipped, or stale rules become visible.
 
-It is a portable, tool-agnostic [Agent Skill](https://skills.sh) with four modes:
-
-- **init** - scaffold a fresh traceable rule system.
-- **migrate** - convert existing scattered rules into an ID-based format.
-- **audit** - maintain the rule set using repo state and usage data.
-- **report** - aggregate traces into `report.json` and `dashboard.html`.
+Rules loaded into a coding agent are *loaded* context, not *applied* context. A rule that was followed looks identical to one that was ignored unless the agent makes the difference visible. This skill closes that gap with stable rule IDs, trace blocks, a deterministic validator, and cross-session usage reports.
 
 Background: [Making AI-agent rule application visible - stable IDs and trace blocks](https://seanleecoder.hashnode.dev/making-ai-agent-rule-application-visible-stable-ids-and-trace-blocks).
 
@@ -21,14 +19,25 @@ Background: [Making AI-agent rule application visible - stable IDs and trace blo
 
 Use this when your agent rules have become important enough to break things, but still invisible enough that no one can inspect them.
 
-- Find rules that are never candidates and should be removed or rewritten.
+- Give reviewers a concrete trace instead of "the agent followed project rules" as an unverifiable claim.
+- Find rules that are never candidates and should be removed, narrowed, or rewritten.
 - Find rules that are always candidates but rarely applied, usually a sign they are too broad, too expensive, or miscoped.
 - Catch `MUST` rules that were in scope but neither applied nor explicitly waived.
-- Keep Claude Code, OpenCode, Codex, Cursor, and other importers loading the same rule files.
 - Fail CI when a catalog ID no longer resolves to a heading, a rule is missing required fields, an importer drifts, or `.opencode/opencode.json` is malformed.
-- Give reviewers a concrete trace instead of "the agent followed project rules" as an unverifiable claim.
+- Keep multiple agent tools loading the same canonical rule files when a repo uses more than one.
 
 This is not compliance theater. Counts are self-reported by the model, so they are an audit signal, not proof. The value is that previously invisible rule behavior becomes reviewable.
+
+## Core Workflow
+
+Most teams should start with the core loop:
+
+1. **Migrate** existing prose from `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, package READMEs, and docs into ID-based rules.
+2. **Validate** the rule system so every catalog entry resolves, every rule has required fields, and configured importers load the same file set.
+3. **Collect** trace blocks from saved transcripts or a live Claude Code hook.
+4. **Report** candidate/applied/deviation counts into `.agents/metrics/report.json` and an optional `dashboard.html`.
+
+The skill also supports `init` for new repos and `audit` for cleanup after you have enough usage data, but `migrate -> validate -> collect -> report` is the main release path. Do not skip collect: `report` only aggregates traces that already exist, so a report run before any traces are collected flags every catalogued rule as dead.
 
 ## Before And After
 
@@ -82,19 +91,26 @@ That does not prove the agent was right. It tells you `TEST-001` is worth review
 
 ## What You Get
 
+Core pieces:
+
 - **Stable rule IDs** anchored at markdown `##` headings.
 - **A catalog** (`.agents/rules-catalog.md`) that indexes every rule ID and source file.
-- **Thin importers** so every agent tool loads the same canonical files instead of divergent prose.
 - **Trace blocks** that distinguish candidate rules, applied rules, and deliberate deviations.
-- **Usage counters** that aggregate traces across sessions into candidate/applied/rate metrics.
-- **A dashboard** that flags dead rules, always-candidate-never-applied rules, low application rate, un-waived `MUST` gaps, and unknown IDs.
 - **A validator** that is deterministic, dependency-free, CI-friendly, and runnable without an agent runtime.
+- **Usage reports** that aggregate traces across sessions into candidate/applied/rate metrics.
+
+Optional adoption support:
+
+- **Thin importers** so each agent tool can load the same canonical files instead of divergent prose.
+- **A dashboard** that flags dead rules, always-candidate-never-applied rules, low application rate, un-waived `MUST` gaps, and unknown IDs.
+- **CI snippets** for GitHub Actions and GitLab.
+- **A Claude Code Stop hook** for live usage collection.
+- **Scaffolding** for optional CI, hook, and metrics wiring.
+- **Audit mode** for cleaning up rule sets after reports have useful volume.
 
 ## Install
 
-### Across All Agents
-
-Use [skills.sh](https://skills.sh) when you want the same skill available to multiple agent tools:
+Use [skills.sh](https://skills.sh) for the normal install path:
 
 ```bash
 npx skills add seanleecoder/rule-traceability
@@ -102,9 +118,13 @@ npx skills add seanleecoder/rule-traceability
 
 This installs into every detected agent at once, such as Claude Code under `.claude/skills/` and OpenCode/Codex/Cursor under `.agents/skills/`. Add `-g` for a global install, or `--copy` to copy instead of symlink. Update later with `npx skills update rule-traceability`.
 
-### As A Claude Code Plugin
+For CI-only validation, use the package CLI without an agent runtime:
 
-Use the plugin when you want Claude Code to wire the live usage counter automatically:
+```bash
+npx github:seanleecoder/rule-traceability validate
+```
+
+For Claude Code live counting, install the plugin:
 
 ```text
 /plugin marketplace add seanleecoder/rule-traceability
@@ -113,19 +133,9 @@ Use the plugin when you want Claude Code to wire the live usage counter automati
 
 The plugin ships a `Stop` hook in [`hooks/hooks.json`](hooks/hooks.json), so finished Claude Code responses can be recorded live.
 
-### As A CLI In CI
-
-Use the CLI when no agent runtime is available, such as a GitHub Actions or GitLab CI job:
-
-```bash
-npx github:seanleecoder/rule-traceability validate
-```
-
-The package exposes `rule-traceability` as a Node CLI and the scripts themselves remain plain Node >=18 with zero dependencies.
-
 ## Quickstart
 
-Once installed, ask your agent to use the skill:
+Once installed, ask your agent to migrate an existing repo:
 
 ```text
 use rule-traceability to migrate this repo's rules
@@ -134,11 +144,14 @@ use rule-traceability to migrate this repo's rules
 Useful starting points:
 
 - **Existing rules:** ask for `migrate`. The agent gathers `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.opencode/opencode.json`, package READMEs, and any docs you point it at, then splits prose into ID-based rules.
-- **No existing system:** ask for `init`. The agent creates `.agents/traceability.md`, `.agents/rules-catalog.md`, an example `.agents/rules/root.md`, and thin importers.
+- **No existing system:** ask for `init`. The agent creates `.agents/traceability.md`, `.agents/rules-catalog.md`, an example `.agents/rules/root.md`, and optional thin importers.
 - **Just validate:** run `rule-traceability validate` or `node <skill>/scripts/validate-rules.mjs` from the target repo root.
-- **Just count usage:** run `parse` to backfill traces from transcripts, then `report` to build the dashboard.
+- **Just count usage:** run `parse` to backfill traces from transcripts, then `report` to build the report and dashboard.
+- **Ready to clean up:** after you have enough trace data, ask for `audit` to classify rules as keep, revise, remove, consolidate, or add.
 
-The deterministic commands are available directly:
+## Commands
+
+The deterministic scripts are available directly:
 
 ```bash
 # Validate the rule system.
@@ -152,31 +165,13 @@ node <skill>/scripts/report.mjs --root <repo> --low-rate 0.5 --min-candidates 3
 
 # Generate the catalog from rule headings, preserving curated summaries.
 node <skill>/scripts/generate-catalog.mjs --root <repo> --write
-
-# Scaffold optional wiring without overwriting existing files.
-node <skill>/scripts/scaffold-wiring.mjs --root <repo> --all
 ```
 
-The CLI exposes the same tools:
+The CLI exposes the same core tools:
 
 ```bash
 npx github:seanleecoder/rule-traceability <validate|parse|report|catalog|scaffold>
 ```
-
-## Scaffolding
-
-`scaffold-wiring.mjs` writes optional operational glue. It is non-destructive: existing files are left untouched, and merge instructions are printed when manual integration is needed.
-
-```bash
-node <skill>/scripts/scaffold-wiring.mjs --root <repo> --all
-node <skill>/scripts/scaffold-wiring.mjs --root <repo> --hook
-node <skill>/scripts/scaffold-wiring.mjs --root <repo> --gitignore
-node <skill>/scripts/scaffold-wiring.mjs --root <repo> --ci github
-node <skill>/scripts/scaffold-wiring.mjs --root <repo> --ci gitlab
-node <skill>/scripts/scaffold-wiring.mjs --root <repo> --ci none
-```
-
-With no selector flags, `--all` is assumed. Selective flags do only what they say: `--hook` does not create CI, and `--gitignore` does not create a hook.
 
 ## Counters And Dashboard
 
@@ -204,7 +199,7 @@ The dashboard highlights:
 - Duplicate rule IDs.
 - Missing required fields: `Scope`, `Applies when`, `Severity`, and `Rule`.
 - Invalid severity values outside `MUST`, `SHOULD`, and `MAY`.
-- Importer drift, where agent tools load different rule file sets.
+- Importer drift, where configured agent tools load different rule file sets.
 - Malformed OpenCode config when `.opencode/opencode.json` is present.
 - Trace blocks that cite IDs missing from the catalog when using `--lint-file <path>`.
 
@@ -221,6 +216,21 @@ Example package script:
 ```
 
 More CI snippets live in `skills/rule-traceability/references/ci-wiring.md`.
+
+## Optional Scaffolding
+
+`scaffold-wiring.mjs` writes optional operational glue. It is non-destructive: existing files are left untouched, and merge instructions are printed when manual integration is needed.
+
+```bash
+node <skill>/scripts/scaffold-wiring.mjs --root <repo> --all
+node <skill>/scripts/scaffold-wiring.mjs --root <repo> --hook
+node <skill>/scripts/scaffold-wiring.mjs --root <repo> --gitignore
+node <skill>/scripts/scaffold-wiring.mjs --root <repo> --ci github
+node <skill>/scripts/scaffold-wiring.mjs --root <repo> --ci gitlab
+node <skill>/scripts/scaffold-wiring.mjs --root <repo> --ci none
+```
+
+With no selector flags, `--all` is assumed. Selective flags do only what they say: `--hook` does not create CI, and `--gitignore` does not create a hook.
 
 ## Tests And Evals
 
