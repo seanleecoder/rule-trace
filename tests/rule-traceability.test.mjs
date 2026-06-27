@@ -1,5 +1,5 @@
 // Tests for the rule-traceability skill's scripts and plugin manifests.
-// Run from the repo root with `node --test tests/`.
+// Run from the repo root with `node --test tests/*.test.mjs` (or `npm test`).
 //
 // These verify the skill's own code (the shared parsing/scanning library and the
 // validator CLI's pass/fail behavior on crafted fixtures) plus the plugin and
@@ -65,6 +65,26 @@ test('parseTraceBlock extracts candidate/applied/deviations and ignores prose', 
     '- Sources: whatever',
     '- Reasoning note: because',
     '- Deviations: [`TEST-002`](y) — not applied, no test path feasible',
+  ].join('\n')
+  const trace = parseTraceBlock(text)
+  assert.deepEqual(trace.candidate, ['ROOT-002', 'TEST-002'])
+  assert.deepEqual(trace.applied, ['ROOT-002'])
+  assert.deepEqual(trace.deviations, ['TEST-002'])
+})
+
+test('parseTraceBlock handles a multiline (indented sub-bullet) trace block', () => {
+  const text = [
+    'Some answer text.',
+    '',
+    'Rule trace',
+    '',
+    '- Candidate rules loaded:',
+    '  - [`ROOT-002`](x)',
+    '  - [`TEST-002`](y)',
+    '- Rules applied:',
+    '  - [`ROOT-002`](x)',
+    '- Deviations:',
+    '  - [`TEST-002`](y) — not applied, no test path feasible',
   ].join('\n')
   const trace = parseTraceBlock(text)
   assert.deepEqual(trace.candidate, ['ROOT-002', 'TEST-002'])
