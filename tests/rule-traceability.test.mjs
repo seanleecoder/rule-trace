@@ -72,6 +72,26 @@ test('parseTraceBlock extracts candidate/applied/deviations and ignores prose', 
   assert.deepEqual(trace.deviations, ['TEST-002'])
 })
 
+test('parseTraceBlock handles a multiline (indented sub-bullet) trace block', () => {
+  const text = [
+    'Some answer text.',
+    '',
+    'Rule trace',
+    '',
+    '- Candidate rules loaded:',
+    '  - [`ROOT-002`](x)',
+    '  - [`TEST-002`](y)',
+    '- Rules applied:',
+    '  - [`ROOT-002`](x)',
+    '- Deviations:',
+    '  - [`TEST-002`](y) — not applied, no test path feasible',
+  ].join('\n')
+  const trace = parseTraceBlock(text)
+  assert.deepEqual(trace.candidate, ['ROOT-002', 'TEST-002'])
+  assert.deepEqual(trace.applied, ['ROOT-002'])
+  assert.deepEqual(trace.deviations, ['TEST-002'])
+})
+
 test('parseTraceBlock returns null when there is no trace block', () => {
   assert.equal(parseTraceBlock('just a normal answer, no trace here'), null)
 })

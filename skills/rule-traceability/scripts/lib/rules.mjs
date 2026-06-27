@@ -229,11 +229,21 @@ export function parseTraceBlock(text) {
       break
     }
   }
-  const block = lines.slice(start, end).join('\n')
+  const blockLines = lines.slice(start, end)
+  // A field label is a top-level bullet ending in a colon ("- Rules applied:").
+  // Indented ID sub-bullets ("  - [`ROOT-001`](...)") start with `[`, and a bare
+  // `ROOT-001` line breaks on the `-` before any colon, so neither is mistaken for
+  // a label — which lets a field's IDs span the lines until the next label.
+  const labelLine = /^\s*[-*]?\s*\*{0,2}[A-Z][\w ]*\*{0,2}\s*:/
   const field = label => {
-    const m = block.match(new RegExp(`${label}\\s*:?\\*{0,2}\\s*(.*)`, 'i'))
-    if (!m) return []
-    return [...m[1].matchAll(RULE_ID_RE)].map(x => x[1])
+    const labelRe = new RegExp(`^\\s*[-*]?\\s*\\*{0,2}${label}\\*{0,2}\\s*:?`, 'i')
+    const i = blockLines.findIndex(l => labelRe.test(l))
+    if (i === -1) return []
+    const buf = [blockLines[i].replace(labelRe, '')]
+    for (let j = i + 1; j < blockLines.length && !labelLine.test(blockLines[j]); j++) {
+      buf.push(blockLines[j])
+    }
+    return [...buf.join('\n').matchAll(RULE_ID_RE)].map(x => x[1])
   }
   const candidate = field('Candidate rules loaded')
   const applied = field('Rules applied')
