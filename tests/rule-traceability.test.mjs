@@ -1,5 +1,5 @@
 // Tests for the rule-traceability skill's scripts and plugin manifests.
-// Run from the repo root with `node --test tests/`.
+// Run from the repo root with `node --test tests/*.test.mjs` (or `npm test`).
 //
 // These verify the skill's own code (the shared parsing/scanning library and the
 // validator CLI's pass/fail behavior on crafted fixtures) plus the plugin and
