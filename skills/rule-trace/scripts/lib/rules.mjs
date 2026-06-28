@@ -7,7 +7,9 @@
 // from here so a rule ID is parsed and validated identically everywhere.
 
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
+import process from 'node:process'
 
 // A rule ID is an uppercase prefix, optional uppercase/digit middle segments,
 // and a trailing number: ROOT-001, JOURNAL-001, GLOBAL-RC-001, PKG-EXPO-CODE-001.
@@ -287,4 +289,90 @@ export function readJsonl(file) {
       }
     })
     .filter(Boolean)
+}
+
+// --- Claude Code Stop-hook wiring detection --------------------------------
+//
+// The live counter is a `Stop` hook, wired one of two ways: by the Claude Code
+// plugin (auto, via the plugin's hooks/hooks.json) or by a manual entry in
+// settings.json (standalone installs). They are alternatives — with both
+// present the recorder runs twice per turn, because the plugin command resolves
+// to `${CLAUDE_PLUGIN_ROOT}/...` and the manual one to `$CLAUDE_PROJECT_DIR/...`,
+// so Claude Code's identical-command dedup never triggers. These helpers let the
+// scaffolder avoid creating that overlap and the validator surface it.
+
+// Claude Code's config dir, honoring CLAUDE_CONFIG_DIR like the CLI does — so
+// the probe respects custom installs and is testable (point it at a fixture).
+function claudeConfigDir() {
+  return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
+}
+
+function readJsonSafe(file) {
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'))
+  } catch {
+    return null
+  }
+}
+
+// An `enabledPlugins` map enables a plugin when its `name@marketplace` key is
+// truthy. Match the rule-trace plugin under any marketplace.
+function enablesRuleTrace(enabledPlugins) {
+  if (!enabledPlugins || typeof enabledPlugins !== 'object') return false
+  return Object.entries(enabledPlugins).some(
+    ([key, on]) => on && /^rule-trace@/.test(key),
+  )
+}
+
+// Does a parsed settings object wire a Stop hook that runs record-trace.mjs?
+// Both the plugin and the manual entry invoke that script by name, so a
+// substring check over the Stop array is enough and format-agnostic.
+function settingsWiresRecorder(settings) {
+  const stop = settings && settings.hooks && settings.hooks.Stop
+  if (!Array.isArray(stop)) return false
+  return JSON.stringify(stop).includes('record-trace.mjs')
+}
+
+// Best-effort: is the rule-trace Claude Code plugin *enabled* (so its bundled
+// Stop hook is active)? Keyed off enablement, not mere installation — an
+// installed-but-disabled plugin fires no hook, so a manual hook alongside it is
+// fine. Checks project and user settings (incl. settings.local.json). Never
+// throws; returns false when nothing is found (e.g. CI, with no Claude config).
+// The settings files Claude Code merges (project then user, plain then local) —
+// any of them can hold the manual hook or the plugin-enable flag.
+function settingsFiles(root) {
+  const home = claudeConfigDir()
+  return [
+    path.join(root, '.claude', 'settings.json'),
+    path.join(root, '.claude', 'settings.local.json'),
+    path.join(home, 'settings.json'),
+    path.join(home, 'settings.local.json'),
+  ]
+}
+
+export function ruleTracePluginEnabled(root) {
+  return settingsFiles(root).some(file =>
+    enablesRuleTrace(readJsonSafe(file)?.enabledPlugins),
+  )
+}
+
+// Is a manual record-trace Stop hook wired in ANY Claude settings file (project
+// or user, plain or local)? Mirrors ruleTracePluginEnabled so the validator's
+// double-wire check fires wherever the manual hook lives — the docs allow it in
+// project or user settings alike.
+export function manualRecorderHookWired(root) {
+  return settingsFiles(root).some(file =>
+    settingsWiresRecorder(readJsonSafe(file)),
+  )
+}
+
+// Does <root>/.claude/settings.json — the file the scaffolder targets — already
+// wire the record-trace hook? Scaffold writes the project file, so it only needs
+// to know whether that one file already has it; a second manual hook elsewhere
+// resolves to the same path and is deduped by Claude Code, so it can't
+// double-fire (only manual + plugin can, which scaffold guards separately).
+export function projectSettingsWiresRecorder(root) {
+  return settingsWiresRecorder(
+    readJsonSafe(path.join(root, '.claude', 'settings.json')),
+  )
 }

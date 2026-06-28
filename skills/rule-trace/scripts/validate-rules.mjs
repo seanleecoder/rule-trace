@@ -28,6 +28,8 @@ import {
   catalogIdSet,
   readImporterImports,
   parseTraceBlock,
+  ruleTracePluginEnabled,
+  manualRecorderHookWired,
 } from './lib/rules.mjs'
 import fs from 'node:fs'
 
@@ -157,6 +159,18 @@ function validate(root, opts) {
         )
       }
     }
+  }
+
+  // Stop-hook double-wiring (warning only). The recorder runs twice per turn if a
+  // manual hook (in any project/user settings file) coexists with the enabled
+  // plugin's auto hook; it's silent (UUID dedup hides it), so surface it here.
+  // Best-effort and local: a no-op in CI, where there's no Claude config at all.
+  if (manualRecorderHookWired(root) && ruleTracePluginEnabled(root)) {
+    warnings.push(
+      'Stop hook appears double-wired: a manual record-trace hook in your Claude ' +
+        'settings plus the enabled rule-trace plugin. The recorder then runs twice ' +
+        'per turn — remove one (use the plugin OR the manual hook).',
+    )
   }
 
   // ID-number gaps per prefix (warning only).

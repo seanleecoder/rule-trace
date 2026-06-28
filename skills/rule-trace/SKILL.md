@@ -1,7 +1,7 @@
 ---
 name: rule-trace
 description: Make AI-agent rule application visible and auditable using stable rule IDs, a catalog, trace blocks, usage counters, and a deterministic validator. Use this whenever someone wants to add rule tracing to a repo, turn existing agent rules (CLAUDE.md, AGENTS.md, .cursorrules, .agents/, scattered docs) into a traceable ID-based format, track or count how often each rule is considered vs applied, audit which rules are noise or dead, validate that a rule catalog and its importers haven't drifted, or build a report/dashboard of rule usage. Triggers on phrases like "rule tracing", "trace which rules were applied", "stable rule IDs", "rules catalog", "parse my rules", "which rules never fire", "rule usage metrics", or wiring rules across multiple agent tools.
-version: 1.0.0
+version: 1.1.0
 license: MIT
 ---
 
@@ -65,7 +65,7 @@ See "Counters" below.
 Trace blocks already emit candidate + applied IDs in every relevant response, so the data exists in transcripts — it just needs collecting. Two collectors share one append-only event log (`<metricsDir>/traces.jsonl`), deduped by transcript message UUID so they never double-count:
 
 - **Offline backfill (tool-agnostic):** `node <skill>/scripts/parse-traces.mjs --root <repo>` walks saved Claude Code transcripts (default `~/.claude/projects/<encoded-cwd>/`) and appends any trace blocks it finds. Re-runnable; retroactive over history. Point `--transcripts <dir>` at another tool's transcript store if its records expose `uuid` + an assistant `message.content`.
-- **Live Stop-hook (Claude Code only):** wire `scripts/record-trace.mjs` as a `Stop` hook (see `references/importer-wiring.md`). It records each finished main-agent response automatically. Ignores `SubagentStop`; never blocks the agent.
+- **Live Stop-hook (Claude Code only):** wire `scripts/record-trace.mjs` as a `Stop` hook (see `references/importer-wiring.md`). It records each finished main-agent response automatically. Ignores `SubagentStop`; never blocks the agent. The plugin install already wires this hook, so the manual hook is for standalone installs only — never both, or the recorder runs twice per turn.
 
 Then `node <skill>/scripts/report.mjs --root <repo>` aggregates the log into per-rule candidate/applied/rate plus the flag lists, writing `report.json` and a self-contained `dashboard.html`. To publish the dashboard as a shareable Artifact, render the generated HTML with the Artifact tool.
 

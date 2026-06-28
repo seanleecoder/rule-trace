@@ -42,6 +42,8 @@ The live counter is a `Stop` hook. How it gets wired depends on how the skill wa
 
 Other agents (OpenCode, Codex) have no equivalent Stop hook; collect their counts with the offline parser instead (`parse-traces.mjs --transcripts <their transcript dir>`).
 
+> **Pick one — never both.** These are alternatives. If the plugin is enabled and you also add the manual hook below, the recorder fires twice per response: the plugin command resolves to `${CLAUDE_PLUGIN_ROOT}/skills/rule-trace/scripts/record-trace.mjs` and the manual one to `$CLAUDE_PROJECT_DIR/.agents/skills/rule-trace/scripts/record-trace.mjs`, so Claude Code's identical-command dedup never triggers. No error surfaces — `record-trace.mjs` dedupes events by message UUID, so the second run just appends nothing — but you spawn a redundant Node process every turn. Add the manual hook only on a standalone install with no plugin; `validate-rules.mjs` and `scaffold-wiring.mjs` warn if they detect both.
+
 Manual entry for a skills.sh / standalone install:
 
 ```json

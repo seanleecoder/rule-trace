@@ -1,5 +1,7 @@
 # rule-trace
 
+[![Skills](https://www.skills.sh/b/seanleecoder/rule-trace)](https://www.skills.sh/seanleecoder/rule-trace)
+
 See which agent rules actually shaped the work.
 
 `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, and tool configs are easy to grow and hard to debug. After a few weeks, you usually cannot tell which instructions are still useful, which ones are noise, or whether Claude, OpenCode, Codex, Cursor, and other tools are even loading the same rules.
@@ -110,28 +112,32 @@ Optional adoption support:
 
 ## Install
 
-Use [skills.sh](https://skills.sh) for the normal install path:
+Pick **one** path for Claude Code — skills.sh and the plugin install the same skill, so they are alternatives, not steps. Combining them wires the live `Stop` hook twice (see the note below).
+
+### Path A — skills.sh (all agents; recommended for teams)
 
 ```bash
 npx skills add seanleecoder/rule-trace
 ```
 
-This installs into every detected agent at once, such as Claude Code under `.claude/skills/` and OpenCode/Codex/Cursor under `.agents/skills/`. Add `-g` for a global install, or `--copy` to copy instead of symlink. Update later with `npx skills update rule-trace`.
+Installs into every detected agent at once — Claude Code under `.claude/skills/`, OpenCode/Codex/Cursor under `.agents/skills/` — as files in your repo tree that you can **commit**, so teammates get it on clone. Add `-g` for a global install, or `--copy` to copy instead of symlink. Update later with `npx skills update rule-trace`. For live counting on Claude Code, wire the `Stop` hook by hand (one snippet — see [`skills/rule-trace/references/importer-wiring.md`](skills/rule-trace/references/importer-wiring.md)).
 
-For CI-only validation, use the package CLI without an agent runtime:
-
-```bash
-npx github:seanleecoder/rule-trace validate
-```
-
-For Claude Code live counting, install the plugin:
+### Path B — Claude Code plugin (Claude Code only; hook auto-wired)
 
 ```text
 /plugin marketplace add seanleecoder/rule-trace
 /plugin install rule-trace@seanleecoder-skills
 ```
 
-The plugin ships a `Stop` hook in [`hooks/hooks.json`](hooks/hooks.json), so finished Claude Code responses can be recorded live.
+Installs the same skill for Claude Code only, per developer (under `~/.claude/plugins/`, _not_ committed to the repo), and ships a `Stop` hook in [`hooks/hooks.json`](hooks/hooks.json) that is wired automatically — nothing else to do for live counting.
+
+> **Don't combine A and B.** Both wire the recorder. The plugin's command resolves to `${CLAUDE_PLUGIN_ROOT}/…` and the manual one to `$CLAUDE_PROJECT_DIR/…`, so Claude Code can't dedupe them and the recorder runs on every turn from each. It fails _silently_ — `record-trace.mjs` dedupes by message UUID, so the second run just writes nothing — but it spawns a redundant process per turn. Use skills.sh **plus** the manual hook, _or_ the plugin alone. `validate` and `scaffold` warn if they detect both.
+
+For CI-only validation, use the package CLI without an agent runtime:
+
+```bash
+npx github:seanleecoder/rule-trace validate
+```
 
 ## Quickstart
 

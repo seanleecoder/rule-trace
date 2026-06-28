@@ -65,3 +65,23 @@ test('every script the CLI dispatches to exists', () => {
     )
   }
 })
+
+test('version agrees across package.json, plugin.json, metadata.json, and SKILL.md', () => {
+  const ver = rel =>
+    JSON.parse(fs.readFileSync(path.join(repoRoot, rel), 'utf8')).version
+  const pkg = ver('package.json')
+  assert.ok(pkg, 'package.json needs a version')
+  const fm = fs
+    .readFileSync(path.join(skillDir, 'SKILL.md'), 'utf8')
+    .match(/^version:\s*(.+)$/m)
+  assert.ok(fm, 'SKILL.md frontmatter needs a version')
+  assert.deepEqual(
+    {
+      plugin: ver('.claude-plugin/plugin.json'),
+      metadata: ver('skills/rule-trace/metadata.json'),
+      skill: fm[1].trim(),
+    },
+    { plugin: pkg, metadata: pkg, skill: pkg },
+    'all version locations must match package.json',
+  )
+})

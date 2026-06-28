@@ -16,6 +16,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+import {
+  ruleTracePluginEnabled,
+  projectSettingsWiresRecorder,
+} from './lib/rules.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const TEMPLATES = path.join(here, '..', 'templates', 'wiring')
@@ -86,10 +90,22 @@ if (args.ci === 'github') {
 if (args.hook) {
   const settingsRel = '.claude/settings.json'
   const settingsAbs = path.join(args.root, settingsRel)
-  if (!fs.existsSync(settingsAbs)) {
+  if (ruleTracePluginEnabled(args.root)) {
+    // The plugin already wires the Stop hook via its hooks/hooks.json; a manual
+    // one on top would run the recorder twice (the two commands resolve to
+    // different paths, so Claude Code can't dedupe them). Write nothing.
+    notes.push(
+      'rule-trace plugin is enabled — it wires the Stop hook automatically; not adding a manual hook (a second one would run the recorder twice). Use the plugin OR the manual hook, not both.',
+    )
+  } else if (projectSettingsWiresRecorder(args.root)) {
+    // Already wired by hand — nothing to do.
+    notes.push(
+      `${settingsRel} already wires the record-trace Stop hook — left as is.`,
+    )
+  } else if (!fs.existsSync(settingsAbs)) {
     writeIfAbsent(settingsRel, tpl('stop-hook.settings.json'), args.root)
   } else {
-    // Non-destructive: leave the existing settings untouched, drop an example.
+    // Settings exist but don't wire the hook: leave them untouched, drop an example.
     const exampleRel = '.claude/settings.rule-trace.json'
     writeIfAbsent(exampleRel, tpl('stop-hook.settings.json'), args.root)
     notes.push(

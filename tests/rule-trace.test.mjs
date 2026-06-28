@@ -29,11 +29,17 @@ const VALIDATOR = path.join(
   'skills/rule-trace/scripts/validate-rules.mjs',
 )
 
-function runValidator(root, extraArgs = []) {
+// A guaranteed-empty Claude config dir so plugin-detection in scaffold/validate
+// can't pick up the developer's real ~/.claude state. Tests that exercise
+// detection write enabledPlugins into the fixture's own .claude/settings.json.
+const EMPTY_CLAUDE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-noclaude-'))
+const HERMETIC_ENV = { ...process.env, CLAUDE_CONFIG_DIR: EMPTY_CLAUDE_DIR }
+
+function runValidator(root, extraArgs = [], env) {
   const res = spawnSync(
     process.execPath,
     [VALIDATOR, '--root', root, ...extraArgs],
-    { encoding: 'utf8' },
+    { encoding: 'utf8', env: env ? { ...HERMETIC_ENV, ...env } : HERMETIC_ENV },
   )
   return { status: res.status, out: (res.stdout || '') + (res.stderr || '') }
 }
@@ -245,6 +251,7 @@ const REPORT = path.join(
 function runScript(script, args = []) {
   const res = spawnSync(process.execPath, [script, ...args], {
     encoding: 'utf8',
+    env: HERMETIC_ENV,
   })
   return { status: res.status, out: (res.stdout || '') + (res.stderr || '') }
 }
@@ -510,4 +517,104 @@ test('scaffold-wiring does not overwrite an existing .example settings file', ()
     exampleSentinel,
     'an existing .example settings file must be left untouched',
   )
+})
+
+// --- Stop-hook double-wiring detection ---
+// The plugin auto-wires the Stop hook, so a manual one on top runs the recorder
+// twice (silently, since record-trace.mjs dedupes by UUID). scaffold must not
+// create that overlap; validate must surface it.
+
+function writeEnabledPlugin(dir) {
+  fs.mkdirSync(path.join(dir, '.claude'), { recursive: true })
+  fs.writeFileSync(
+    path.join(dir, '.claude', 'settings.json'),
+    JSON.stringify({
+      enabledPlugins: { 'rule-trace@seanleecoder-skills': true },
+    }),
+  )
+}
+
+const MANUAL_HOOK_SETTINGS = {
+  hooks: {
+    Stop: [{ hooks: [{ type: 'command', command: 'node record-trace.mjs' }] }],
+  },
+}
+
+test('scaffold-wiring --hook skips and warns when the plugin is enabled', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-scaffold-'))
+  writeEnabledPlugin(dir)
+  const { status, out } = runScript(SCAFFOLD, ['--root', dir, '--hook'])
+  assert.equal(status, 0)
+  assert.match(out, /plugin is enabled/)
+  assert.ok(
+    !fs.existsSync(path.join(dir, '.claude', 'settings.rule-trace.json')),
+    'must not drop a manual-hook example when the plugin already wires it',
+  )
+})
+
+test('scaffold-wiring --hook leaves an existing record-trace hook untouched', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-scaffold-'))
+  fs.mkdirSync(path.join(dir, '.claude'), { recursive: true })
+  const wired = JSON.stringify(MANUAL_HOOK_SETTINGS)
+  fs.writeFileSync(path.join(dir, '.claude', 'settings.json'), wired)
+  const { status, out } = runScript(SCAFFOLD, ['--root', dir, '--hook'])
+  assert.equal(status, 0)
+  assert.match(out, /already wires the record-trace Stop hook/)
+  assert.equal(
+    fs.readFileSync(path.join(dir, '.claude', 'settings.json'), 'utf8'),
+    wired,
+    'existing settings must be untouched',
+  )
+  assert.ok(
+    !fs.existsSync(path.join(dir, '.claude', 'settings.rule-trace.json')),
+    'no redundant example when the hook is already wired',
+  )
+})
+
+test('validator warns (but does not fail) on a double-wired Stop hook', () => {
+  const dir = writeFixture()
+  fs.mkdirSync(path.join(dir, '.claude'), { recursive: true })
+  fs.writeFileSync(
+    path.join(dir, '.claude', 'settings.json'),
+    JSON.stringify({
+      enabledPlugins: { 'rule-trace@seanleecoder-skills': true },
+      ...MANUAL_HOOK_SETTINGS,
+    }),
+  )
+  const { status, out } = runValidator(dir)
+  assert.equal(status, 0, 'double-wiring is a warning, not an error')
+  assert.match(out, /double-wired/)
+})
+
+test('validator does not warn when only the manual hook is present (no plugin)', () => {
+  const dir = writeFixture()
+  fs.mkdirSync(path.join(dir, '.claude'), { recursive: true })
+  fs.writeFileSync(
+    path.join(dir, '.claude', 'settings.json'),
+    JSON.stringify(MANUAL_HOOK_SETTINGS),
+  )
+  const { status, out } = runValidator(dir)
+  assert.equal(status, 0)
+  assert.doesNotMatch(out, /double-wired/)
+})
+
+test('validator warns on a double-wire when the manual hook lives in USER settings', () => {
+  const dir = writeFixture()
+  // Plugin enabled in the project; the manual hook lives only in user settings —
+  // the docs allow that, so the validator must still flag the double-wire.
+  fs.mkdirSync(path.join(dir, '.claude'), { recursive: true })
+  fs.writeFileSync(
+    path.join(dir, '.claude', 'settings.json'),
+    JSON.stringify({
+      enabledPlugins: { 'rule-trace@seanleecoder-skills': true },
+    }),
+  )
+  const userHome = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-home-'))
+  fs.writeFileSync(
+    path.join(userHome, 'settings.json'),
+    JSON.stringify(MANUAL_HOOK_SETTINGS),
+  )
+  const { status, out } = runValidator(dir, [], { CLAUDE_CONFIG_DIR: userHome })
+  assert.equal(status, 0, 'double-wiring is a warning, not an error')
+  assert.match(out, /double-wired/)
 })
