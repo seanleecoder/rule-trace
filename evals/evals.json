@@ -8,7 +8,7 @@
       "fixture": "single-claude-md",
       "prompt": "This project keeps its agent rules as prose in CLAUDE.md. Use the rule-trace skill to migrate them into the traceable format: stable rule IDs in .agents/rules/, a synced .agents/rules-catalog.md, .agents/rule-trace.md, and CLAUDE.md rewired as a thin importer. Make `validate-rules.mjs` pass.",
       "assertions": [
-        "grade.mjs score == 1 (validator passes, catalog + convention exist, >=1 rule)",
+        "grade.mjs score == 1 (validator passes, catalog exists, .agents/rule-trace.md contains the Rule trace template, >=1 validator-recognized rule)",
         "every prose rule in the original CLAUDE.md maps to exactly one rule ID; none invented (LLM-judge)",
         "severities (MUST/SHOULD/MAY) are assigned sensibly, not all MUST (LLM-judge)"
       ]
@@ -19,7 +19,7 @@
       "fixture": "cursorrules",
       "prompt": "This project's agent rules live in a .cursorrules file. Use the rule-trace skill to migrate them into the traceable format and make the validator pass.",
       "assertions": [
-        "grade.mjs score == 1",
+        "grade.mjs score == 1 (validator passes, catalog exists, .agents/rule-trace.md contains the Rule trace template, >=1 validator-recognized rule)",
         "all six .cursorrules conventions are represented; none invented (LLM-judge)"
       ]
     },
@@ -29,7 +29,7 @@
       "fixture": "mini-monorepo",
       "prompt": "This Turborepo monorepo has repo-wide rules in CLAUDE.md and package-specific rules in packages/web/README.md and packages/api/README.md. Use the rule-trace skill to migrate them: repo-wide rules under root IDs, package rules under package-local IDs (PKG-WEB-*, PKG-API-*), a synced catalog, importers wired. Make the validator pass.",
       "assertions": [
-        "grade.mjs score == 1",
+        "grade.mjs score == 1 (validator passes, catalog exists, .agents/rule-trace.md contains the Rule trace template, >=1 validator-recognized rule)",
         "repo-wide vs package-local rules are layered into the right files/ID prefixes (LLM-judge)",
         "package READMEs' conventions are captured, not dropped (LLM-judge)"
       ]
@@ -40,7 +40,7 @@
       "fixture": "oss",
       "prompt": "This is a real project with existing agent-rule files (CLAUDE.md / AGENTS.md / .cursorrules). Use the rule-trace skill to migrate its rules into the traceable format without inventing rules, and make the validator pass.",
       "assertions": [
-        "grade.mjs score == 1",
+        "grade.mjs score == 1 (validator passes, catalog exists, .agents/rule-trace.md contains the Rule trace template, >=1 validator-recognized rule)",
         "the migration preserves the project's actual rules and invents none (LLM-judge)"
       ]
     }

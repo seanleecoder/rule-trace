@@ -6,7 +6,7 @@ Behavioral evals for the **agent-driven** modes of the skill (`migrate` first). 
 
 - `fixtures/` — synthetic untraced-rule repos of varied shape: `single-claude-md/`, `cursorrules/`, `mini-monorepo/`. Plus `fixtures/oss/` (git-ignored) fetched on demand.
 - `fetch-oss.mjs` — clone one public repo (with a CLAUDE.md / AGENTS.md / .cursorrules) as a "real project" fixture: `node evals/fetch-oss.mjs --repo owner/project`.
-- `grade.mjs` — the deterministic oracle: run after a migrate, scores by the validator + catalog/convention presence + rule count. `node evals/grade.mjs --root <migrated-dir> --json`.
+- `grade.mjs` — the deterministic oracle: run after a migrate, scores by the validator + catalog presence + `.agents/rule-trace.md` containing the expected `Rule trace` template + rule count. `node evals/grade.mjs --root <migrated-dir> --json`.
 - `evals.json` — the eval prompts + assertions (deterministic + a few LLM-judge).
 
 ## Triggering it later — three modes
@@ -23,15 +23,26 @@ npm test          # unit tests + doc/script-integrity guards
 node evals/run.mjs
 ```
 
-**3. Run a round (drives `claude -p`):** `--exec` actually performs the migrate, then grades. The signal is the **delta** — with-skill scores 1 (validator-clean traceable rule set), baseline scores 0.
+**3. Run a round (drives an agent CLI):** `--exec` actually performs the migrate, then grades. The signal is the **delta** — with-skill scores 1 (validator-clean traceable rule set), baseline scores 0. Claude is the default agent for compatibility; pass `--agent codex` to run the same prompts through Codex. A validator-clean rule set means rule files use the README anatomy: `## ID` headings plus `- Scope:`, `- Applies when:`, `- Severity:`, and `- Rule:` fields.
 
 ```bash
 node evals/fetch-oss.mjs --repo archtechx/tenancy   # once, for the oss fixture
 node evals/run.mjs --exec --fixtures single-claude-md,oss   # smaller round
+node evals/run.mjs --exec --agent codex --fixtures single-claude-md,oss
+node evals/run.mjs --exec --agent codex --codex-sandbox danger-full-access --fixtures single-claude-md
 node evals/run.mjs --exec --baseline                        # full round, both arms
 node evals/run.mjs --grade-only                             # re-grade the current workspace
 ```
 
-`--exec` needs an agent CLI on PATH (`claude`) and a permissive mode (the runner uses `--permission-mode bypassPermissions` on a throwaway copy). Or skip the runner entirely and **ask Claude Code**: "run the rule-trace eval round (smaller/full)".
+`--exec` needs an agent CLI on PATH (`claude` or `codex`). The runner uses permissive/non-interactive settings on a throwaway copy: `claude -p --permission-mode bypassPermissions` for Claude, or `codex --sandbox workspace-write --ask-for-approval never exec` for Codex. If Codex's `workspace-write` sandbox blocks the required `.agents/` output path, rerun the throwaway fixture with `--codex-sandbox danger-full-access`. Or skip the runner entirely and ask your current coding agent to run the rule-trace eval round.
+
+After each run, the summary prints an **outputs** section showing:
+- `before`: the source fixture under `evals/fixtures/<name>/`
+- `after (with-skill)`: the migrated copy for the skill arm
+- `after (baseline)`: the migrated copy for the no-skill arm, when `--baseline` is enabled
+
+Use those paths directly to inspect or diff the eval outputs. If a Codex run produces no `.agents/` directory, or produces `.agents/` files that the validator cannot recognize as rule-trace rules, the runner prints a **diagnostics** section with the likely fix.
+
+The migrate eval checks that the repo now contains `.agents/rule-trace.md` with the expected trace-block template. It does not currently grade whether the agent's final chat response appended a `Rule trace` block; that belongs to trace-lint/transcript evals, not the migration-output score.
 
 The LLM modes are **not** in GitHub CI (no API key there); only mode 1 runs in CI. The grader (`grade.mjs`) and the synthetic fixtures are committed; `fixtures/oss/` and `.eval-workspace/` are git-ignored.

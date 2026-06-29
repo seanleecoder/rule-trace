@@ -56,10 +56,24 @@ const catalogRows = (() => {
   }
 })()
 const catalogExists = fs.existsSync(path.join(args.root, config.catalogPath))
-const conventionExists = fs.existsSync(path.join(args.root, '.agents/rule-trace.md'))
+const conventionPath = path.join(args.root, '.agents/rule-trace.md')
+const conventionExists = fs.existsSync(conventionPath)
+const traceTemplateFields = [
+  'Rule trace',
+  'Candidate rules loaded',
+  'Rules applied',
+  'Sources',
+  'Reasoning note',
+  'Deviations',
+]
+const conventionHasTraceTemplate =
+  conventionExists &&
+  traceTemplateFields.every(field =>
+    fs.readFileSync(conventionPath, 'utf8').includes(field),
+  )
 
 const validatorPass = (validator.errors || []).length === 0
-const score = validatorPass && catalogExists && conventionExists && ruleCount > 0 ? 1 : 0
+const score = validatorPass && catalogExists && conventionHasTraceTemplate && ruleCount > 0 ? 1 : 0
 
 const result = {
   score,
@@ -68,6 +82,7 @@ const result = {
   catalogRows,
   catalogExists,
   conventionExists,
+  conventionHasTraceTemplate,
   validatorErrors: validator.errors || [],
 }
 
@@ -76,7 +91,9 @@ if (args.json) {
 } else {
   console.log(`score: ${score}`)
   console.log(`  validator: ${validatorPass ? 'pass' : 'FAIL'} (${(validator.errors || []).length} errors)`)
-  console.log(`  rules: ${ruleCount}, catalog rows: ${catalogRows}, catalog: ${catalogExists}, convention doc: ${conventionExists}`)
+  console.log(
+    `  rules: ${ruleCount}, catalog rows: ${catalogRows}, catalog: ${catalogExists}, convention doc: ${conventionExists}, trace template: ${conventionHasTraceTemplate}`,
+  )
   for (const e of (validator.errors || []).slice(0, 8)) console.log(`    ✗ ${e}`)
 }
 process.exit(0)

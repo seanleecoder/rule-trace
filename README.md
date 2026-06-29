@@ -251,10 +251,12 @@ Behavioral evals exercise the agent-driven `migrate` mode on fixture repos:
 ```bash
 node evals/run.mjs
 node evals/run.mjs --exec --fixtures single-claude-md,oss
+node evals/run.mjs --exec --agent codex --fixtures single-claude-md,oss
+node evals/run.mjs --exec --agent codex --codex-sandbox danger-full-access --fixtures single-claude-md
 node evals/run.mjs --grade-only
 ```
 
-See [`evals/README.md`](evals/README.md) for the eval workflow and `fetch-oss.mjs` for adding a real public-repo fixture.
+The runner prints the source fixture and generated arm directories after each round so you can inspect or diff before/after outputs. See [`evals/README.md`](evals/README.md) for the eval workflow and `fetch-oss.mjs` for adding a real public-repo fixture.
 
 ## Limits
 
