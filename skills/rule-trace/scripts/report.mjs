@@ -17,7 +17,8 @@
 //
 // Usage:
 //   node report.mjs [--root <dir>] [--out-json <file>] [--out-html <file>]
-//                   [--low-rate <0..1>] [--min-candidates <n>]
+//                   [--low-rate <0..1>] [--min-candidates <n>] [--min-coverage <0..1>]
+//                   [--stale-days <n>] [--since <ISO-8601 date>]
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -37,6 +38,9 @@ function parseArgs(argv) {
     outHtml: null,
     lowRate: 0.5,
     minCandidates: 3,
+    minCoverage: 0.2,
+    staleDays: 30,
+    since: null,
   }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
@@ -45,6 +49,17 @@ function parseArgs(argv) {
     else if (a === '--out-html') args.outHtml = path.resolve(argv[++i])
     else if (a === '--low-rate') args.lowRate = Number(argv[++i])
     else if (a === '--min-candidates') args.minCandidates = Number(argv[++i])
+    else if (a === '--min-coverage') args.minCoverage = Number(argv[++i])
+    else if (a === '--stale-days') args.staleDays = Number(argv[++i])
+    else if (a === '--since') {
+      const value = argv[++i]
+      const date = new Date(value)
+      if (!value || Number.isNaN(date.getTime())) {
+        console.error(`Invalid --since value: ${value}`)
+        process.exit(1)
+      }
+      args.since = date.toISOString()
+    }
   }
   return args
 }
@@ -61,7 +76,49 @@ function aggregate(root, opts) {
     (known.get(id)?.severity || '').replace(/`/g, '') ||
     null
 
-  const events = readJsonl(tracesPath(root, config))
+  const rawEvents = readJsonl(tracesPath(root, config))
+  const seenUuids = new Set()
+  let duplicateEventsIgnored = 0
+  const dedupedEvents = []
+  for (const ev of rawEvents) {
+    if (ev.uuid == null) {
+      dedupedEvents.push(ev)
+      continue
+    }
+    if (seenUuids.has(ev.uuid)) {
+      duplicateEventsIgnored++
+      continue
+    }
+    seenUuids.add(ev.uuid)
+    dedupedEvents.push(ev)
+  }
+
+  let eventsOutsideWindowOrUndated = 0
+  const events = opts.since
+    ? dedupedEvents.filter(ev => {
+        if (!ev.timestamp) {
+          eventsOutsideWindowOrUndated++
+          return false
+        }
+        const ts = new Date(ev.timestamp)
+        if (Number.isNaN(ts.getTime()) || ts.toISOString() < opts.since) {
+          eventsOutsideWindowOrUndated++
+          return false
+        }
+        return true
+      })
+    : dedupedEvents
+
+  const coverage = { traced: 0, untraced: 0, rate: null }
+  for (const ev of events) {
+    if (ev.traced === true) coverage.traced++
+    else if (ev.traced === false) coverage.untraced++
+  }
+  const coverageDenom = coverage.traced + coverage.untraced
+  if (coverageDenom > 0) {
+    coverage.rate = coverage.traced / coverageDenom
+    if (coverage.rate < opts.minCoverage) coverage.lowCoverage = true
+  }
   const rules = new Map()
   const ensure = id => {
     if (!rules.has(id))
@@ -78,6 +135,7 @@ function aggregate(root, opts) {
   const unknown = new Map()
 
   for (const ev of events) {
+    if (ev.traced === false) continue
     const candidate = new Set(ev.candidate || [])
     const applied = new Set(ev.applied || [])
     const deviations = new Set(ev.deviations || [])
@@ -140,12 +198,25 @@ function aggregate(root, opts) {
     unwaivedMustGaps: table
       .filter(t => t.unwaivedMust > 0)
       .map(t => ({ id: t.id, count: t.unwaivedMust })),
+    stale: table
+      .filter(t => {
+        if (t.candidate === 0 || !t.lastSeen) return false
+        return (
+          Date.now() - new Date(t.lastSeen).getTime() >
+          opts.staleDays * 24 * 60 * 60 * 1000
+        )
+      })
+      .map(t => ({ id: t.id, lastSeen: t.lastSeen })),
     unknownIds: [...unknown.entries()].map(([id, count]) => ({ id, count })),
   }
 
   return {
     generatedAt: new Date().toISOString(),
-    totalTraces: events.length,
+    totalTraces: events.filter(ev => ev.traced !== false).length,
+    totalEvents: events.length,
+    duplicateEventsIgnored,
+    eventsOutsideWindowOrUndated,
+    coverage,
     distinctRulesSeen: rules.size,
     catalogSize: catalog.length,
     table,
@@ -161,6 +232,13 @@ function esc(s) {
 }
 
 function buildHtml(data, lowRate = 0.5) {
+  const coverage = data.coverage || { traced: 0, untraced: 0, rate: null }
+  const coverageTotal = coverage.traced + coverage.untraced
+  const coveragePct = coverage.rate === null ? '—' : Math.round(coverage.rate * 100) + '%'
+  const coverageWarning = coverage.lowCoverage
+    ? `<div class="note"><strong>Low trace coverage:</strong> coverage is below the configured threshold, so dead-rule and low-rate flags below may reflect missing traces rather than unused rules. Trivial or conversational responses may intentionally omit traces, so 100% is not the target; use this as a sanity and trend signal.</div>`
+    : ''
+
   const rows = data.table
     .slice()
     .sort((a, b) => b.candidate - a.candidate || a.id.localeCompare(b.id))
@@ -228,9 +306,11 @@ function buildHtml(data, lowRate = 0.5) {
 <body>
   <h1>Rule tracing — usage report</h1>
   <p class="sub">Generated ${esc(data.generatedAt)}</p>
+  ${coverageWarning}
   <div class="note">Counts are self-reported by the model — they record what it <em>claimed</em> it applied, not proof it complied. Use this as a review surface. A rule never surfaced as a candidate is invisible here (false absence), so low totals early on are expected.</div>
   <div class="stats">
     <div class="stat"><b>${data.totalTraces}</b><span>trace blocks</span></div>
+    <div class="stat"><b>${coveragePct}</b><span>${coverage.traced} of ${coverageTotal} responses traced</span></div>
     <div class="stat"><b>${data.distinctRulesSeen}</b><span>distinct rules seen</span></div>
     <div class="stat"><b>${data.catalogSize}</b><span>rules in catalog</span></div>
     <div class="stat"><b>${flags.deadRules.length}</b><span>never-candidate (dead)</span></div>
@@ -243,6 +323,7 @@ function buildHtml(data, lowRate = 0.5) {
   ${list('Always candidate, never applied (miscoped or ignored)', flags.alwaysCandidateNeverApplied, id => `<li class="mono">${esc(id)}</li>`)}
   ${list('Low application rate', flags.lowRate, x => `<li class="mono">${esc(x.id)} — ${Math.round(x.rate * 100)}%</li>`)}
   ${list('Dead rules (never a candidate — retire or re-scope)', flags.deadRules, id => `<li class="mono">${esc(id)}</li>`)}
+  ${list('Stale (used before, not recently)', flags.stale || [], x => `<li class="mono">${esc(x.id)} — last seen ${esc(x.lastSeen)}</li>`)}
   ${list('Unknown IDs cited (hallucinated or stale)', flags.unknownIds, x => `<li class="mono">${esc(x.id)} — ${x.count}×</li>`)}
 </body></html>`
 }
@@ -263,7 +344,9 @@ fs.writeFileSync(outHtml, buildHtml(data, opts.lowRate))
 console.log(
   `Aggregated ${data.totalTraces} trace block(s) over ${data.catalogSize} catalog rules.`,
 )
+if (data.duplicateEventsIgnored > 0)
+  console.log(`  ignored duplicate events: ${data.duplicateEventsIgnored}`)
 console.log(
-  `  dead: ${data.flags.deadRules.length} | never-applied: ${data.flags.alwaysCandidateNeverApplied.length} | low-rate: ${data.flags.lowRate.length} | un-waived MUST: ${data.flags.unwaivedMustGaps.length} | unknown IDs: ${data.flags.unknownIds.length}`,
+  `  dead: ${data.flags.deadRules.length} | never-applied: ${data.flags.alwaysCandidateNeverApplied.length} | low-rate: ${data.flags.lowRate.length} | un-waived MUST: ${data.flags.unwaivedMustGaps.length} | stale: ${data.flags.stale.length} | unknown IDs: ${data.flags.unknownIds.length}`,
 )
 console.log(`  wrote ${outJson} and ${outHtml}`)

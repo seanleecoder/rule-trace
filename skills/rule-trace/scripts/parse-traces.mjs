@@ -6,6 +6,9 @@
 // to the metrics log. Safe to re-run: dedupe is by message UUID. This is the
 // tool-agnostic collector — point `--transcripts` at any directory of JSONL
 // transcripts whose records expose `uuid` + an assistant `message.content`.
+// Intentionally do not emit untraced coverage events here: offline transcripts
+// include many mid-turn assistant records, so backfilled untraced events would
+// corrupt the live-hook coverage denominator.
 //
 // Usage:
 //   node parse-traces.mjs [--root <dir>] [--transcripts <dir>] [--out <file>]
