@@ -4,6 +4,10 @@
 
 See which agent rules actually shaped the work.
 
+> **Screenshot TODO:** add `docs/dashboard.png` from `examples/demo/.agents/metrics/dashboard.html` once working from a dev environment with browser screenshot tooling; it is omitted from this branch so the PR can be created without a binary diff.
+
+Today, rule-trace makes each substantive agent response end with a clickable, reviewable trace: which rules were candidates, which shaped the work, and why any rule was waived. Over weeks, the counters show which rules to delete, narrow, or rewrite.
+
 `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, and tool configs are easy to grow and hard to debug. After a few weeks, you usually cannot tell which instructions are still useful, which ones are noise, or whether Claude, OpenCode, Codex, Cursor, and other tools are even loading the same rules.
 
 `rule-trace` turns agent rules into a reviewable loop:
@@ -26,7 +30,9 @@ Use this when your agent rules have become important enough to break things, but
 - Find rules that are always candidates but rarely applied, usually a sign they are too broad, too expensive, or miscoped.
 - Catch `MUST` rules that were in scope but neither applied nor explicitly waived.
 - Fail CI when a catalog ID no longer resolves to a heading, a rule is missing required fields, an importer drifts, or `.opencode/opencode.json` is malformed.
-- Keep multiple agent tools loading the same canonical rule files when a repo uses more than one.
+- Keep supported importer entry points referencing the same canonical rule files when a repo uses more than one agent tool; see the importer support matrix for which tools actually expand references.
+
+This repository dogfoods rule-trace: `.agents/` contains the live migrated rule set, while `CLAUDE.md` and `AGENTS.md` show the thin-importer end state. See `examples/demo/` for seeded metrics and a generated dashboard.
 
 This is not compliance theater. Counts are self-reported by the model, so they are an audit signal, not proof. The value is that previously invisible rule behavior becomes reviewable.
 
@@ -152,6 +158,7 @@ Useful starting points:
 - **Existing rules:** ask for `migrate`. The agent gathers `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.opencode/opencode.json`, package READMEs, and any docs you point it at, then splits prose into ID-based rules.
 - **No existing system:** ask for `init`. The agent creates `.agents/rule-trace.md`, `.agents/rules-catalog.md`, an example `.agents/rules/root.md`, and optional thin importers.
 - **Just validate:** run `rule-trace validate` or `node <skill>/scripts/validate-rules.mjs` from the target repo root.
+- **Verify it is working:** after migrate, ask a rule-shaped question such as `Which tests would matter if I changed the validator?`; a substantive response should end with `Rule trace`. If the live hook is wired, confirm `.agents/metrics/traces.jsonl` gained a line. Or try the committed demo first: `node <skill>/scripts/report.mjs --root examples/demo`.
 - **Just count usage:** run `parse` to backfill traces from transcripts, then `report` to build the report and dashboard.
 - **Ready to clean up:** after you have enough trace data, ask for `audit` to classify rules as keep, revise, remove, consolidate, or add.
 
@@ -200,6 +207,10 @@ The dashboard highlights:
 - `unwaivedMustGaps` - `MUST` rules that were candidates but neither applied nor waived.
 - `stale` - rules that were candidates before but have not surfaced within the configured staleness window.
 - `unknownIds` - hallucinated or stale IDs cited by traces.
+
+## What It Costs
+
+A trace block is roughly 50–100 tokens on substantive responses. Rule files usually replace prose the agent entry points were already loading, so migration is roughly context-neutral; `.agents/rule-trace.md` adds a few hundred tokens once per session. The live Claude Code Stop hook is a local subprocess per turn and is designed never to block the agent. Treat these as rough orders of magnitude, not benchmarks.
 
 ## Validation And CI
 

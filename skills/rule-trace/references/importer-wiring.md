@@ -1,10 +1,20 @@
 # Wiring importers and the Stop hook
 
-## Importers (the lockstep rule)
+## Importers (support matrix and lockstep rule)
 
-Each agent tool has its own entry point, but they must all load the **identical set** of rule files. Drift between them is the single most common way the system rots, so the validator treats any difference as an error.
+The validator can prove that configured entry points reference the same files. It cannot prove that every agent tool expands every reference syntax. Use this matrix when choosing an importer pattern:
 
-**`CLAUDE.md` and `AGENTS.md`** (Claude Code / AGENTS.md-compatible tools) use `@`-imports — one per line, nothing else on the line:
+| Tool | Entry point | Reference mechanism | Rules actually loaded? | Evidence |
+| --- | --- | --- | --- | --- |
+| Claude Code | `CLAUDE.md`; project memory can also include imported files | `@path` imports in memory files | Yes for `@` imports; nested imports are expanded recursively | Anthropic Claude Code memory docs: https://docs.anthropic.com/en/docs/claude-code/memory#claude-md-imports |
+| OpenAI Codex CLI | `AGENTS.md` | Plain markdown instructions | No evidence that `@path` includes are expanded; treat `@` lines as text | OpenAI Codex AGENTS.md guidance describes instruction files, not include expansion: https://github.com/openai/codex/blob/main/docs/agents.md |
+| OpenCode | `.opencode/opencode.json` | `instructions` array of files, globs, or remote URLs | Yes for the listed `instructions`; paths are resolved by OpenCode config semantics | OpenCode rules docs: https://opencode.ai/docs/rules/ |
+| Cursor | `.cursorrules`; `.cursor/rules/*.mdc` | Rule files selected by Cursor, not `@path` includes | No for `@` includes; use `.mdc` rule files directly | Cursor rules docs: https://docs.cursor.com/context/rules |
+| GitHub Copilot | `.github/copilot-instructions.md` | Plain markdown custom instructions | No for `@` includes; links/references are not expanded into instructions | GitHub Copilot custom instructions docs: https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-repository-instructions |
+
+Each agent tool has its own entry point, but configured importers should reference the **identical set** of canonical rule files when that tool supports references. Drift between configured importers is the single most common way the system rots, so the validator treats any difference as an error. For tools that do not expand `@` lines, the interim workaround is to inline or duplicate the generated rule content in that tool's native format; spec 3.2 tracks generated importers so this duplication can be produced mechanically.
+
+**`CLAUDE.md`** uses `@`-imports — one per line, nothing else on the line:
 
 ```md
 @.agents/architecture.md
@@ -12,6 +22,8 @@ Each agent tool has its own entry point, but they must all load the **identical 
 @.agents/rules/testing.md
 @.agents/rule-trace.md
 ```
+
+`AGENTS.md` may use the same thin file for parity with Claude/Codex conventions, but current Codex-facing documentation treats it as plain markdown rather than an include-capable format. Do not assume `@.agents/rules/root.md` in `AGENTS.md` loads that file for every AGENTS.md consumer.
 
 **`.opencode/opencode.json`** (OpenCode) uses a flat `instructions` array with the same paths:
 
@@ -28,10 +40,10 @@ Each agent tool has its own entry point, but they must all load the **identical 
 ```
 
 Two consequences worth stating to the user:
-- **Keep the importer entry points thin.** They import; they don't define rules. Canonical content lives in `.agents/`.
-- **No nested `@`-imports inside rule files.** Claude Code would expand them recursively, but OpenCode's flat list won't, so a nested import silently desyncs the tools. Keep each rule file self-contained.
+- **Keep importer entry points thin when the tool supports references.** They import; they don't define rules. Canonical content lives in `.agents/`.
+- **No nested `@`-imports inside rule files.** Claude Code would expand them recursively, but OpenCode's flat list and plain-markdown tools won't, so a nested import silently desyncs tools. Keep each rule file self-contained.
 
-Other tools (`.cursorrules`, `.github/copilot-instructions.md`) can be added to the config's `importers` list once their format is represented; until then, wire them by hand and note they're outside the parity check.
+Cursor and GitHub Copilot need native rule/instruction content until generated importers exist. Wire them by hand and note they're outside the parity check unless the config has a represented importer type for them.
 
 ## The Stop hook (Claude Code only)
 

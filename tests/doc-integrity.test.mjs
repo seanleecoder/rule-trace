@@ -85,3 +85,20 @@ test('version agrees across package.json, plugin.json, metadata.json, and SKILL.
     'all version locations must match package.json',
   )
 })
+
+test('committed demo validates cleanly', () => {
+  const res = spawnSync(
+    process.execPath,
+    [path.join(scriptsDir, 'validate-rules.mjs'), '--root', path.join(repoRoot, 'examples', 'demo')],
+    { encoding: 'utf8' },
+  )
+  assert.equal(res.status, 0, `demo validation failed:\n${res.stdout}\n${res.stderr}`)
+  assert.doesNotMatch(res.stdout, /⚠/, 'demo validation should have no warnings')
+})
+
+test('README carries the dashboard screenshot follow-up reminder', () => {
+  const readme = fs.readFileSync(path.join(repoRoot, 'README.md'), 'utf8')
+  assert.match(readme, /Screenshot TODO/)
+  assert.match(readme, /docs\/dashboard\.png/)
+  assert.equal(fs.existsSync(path.join(repoRoot, 'docs', 'dashboard.png')), false)
+})

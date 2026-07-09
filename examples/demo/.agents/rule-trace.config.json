@@ -1,0 +1,7 @@
+{
+  "packageRuleGlobs": [],
+  "importers": [
+    { "path": "CLAUDE.md", "type": "at-import" },
+    { "path": "AGENTS.md", "type": "at-import" }
+  ]
+}

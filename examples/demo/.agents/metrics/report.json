@@ -1,0 +1,144 @@
+{
+  "generatedAt": "2026-07-09T21:04:15.246Z",
+  "totalTraces": 31,
+  "totalEvents": 42,
+  "duplicateEventsIgnored": 0,
+  "eventsOutsideWindowOrUndated": 0,
+  "coverage": {
+    "traced": 31,
+    "untraced": 11,
+    "rate": 0.7380952380952381
+  },
+  "distinctRulesSeen": 7,
+  "catalogSize": 7,
+  "table": [
+    {
+      "id": "DEMO-ROOT-001",
+      "layer": "demo",
+      "severity": "MUST",
+      "source": "[`.agents/rules/root.md`](rules/root.md)",
+      "candidate": 31,
+      "applied": 21,
+      "deviations": 0,
+      "unwaivedMust": 10,
+      "rate": 0.6774193548387096,
+      "lastSeen": "2026-07-05T12:00:00Z"
+    },
+    {
+      "id": "DEMO-ROOT-002",
+      "layer": "demo",
+      "severity": "MUST",
+      "source": "[`.agents/rules/root.md`](rules/root.md)",
+      "candidate": 31,
+      "applied": 2,
+      "deviations": 0,
+      "unwaivedMust": 29,
+      "rate": 0.06451612903225806,
+      "lastSeen": "2026-07-05T12:00:00Z"
+    },
+    {
+      "id": "DEMO-ROOT-003",
+      "layer": "demo",
+      "severity": "SHOULD",
+      "source": "[`.agents/rules/root.md`](rules/root.md)",
+      "candidate": 31,
+      "applied": 0,
+      "deviations": 0,
+      "unwaivedMust": 0,
+      "rate": 0,
+      "lastSeen": "2026-07-05T12:00:00Z"
+    },
+    {
+      "id": "DEMO-ROOT-004",
+      "layer": "demo",
+      "severity": "SHOULD",
+      "source": "[`.agents/rules/root.md`](rules/root.md)",
+      "candidate": 3,
+      "applied": 3,
+      "deviations": 0,
+      "unwaivedMust": 0,
+      "rate": 1,
+      "lastSeen": "2026-05-28T12:00:00Z"
+    },
+    {
+      "id": "DEMO-TEST-001",
+      "layer": "demo",
+      "severity": "MUST",
+      "source": "[`.agents/rules/testing.md`](rules/testing.md)",
+      "candidate": 10,
+      "applied": 7,
+      "deviations": 3,
+      "unwaivedMust": 0,
+      "rate": 0.7,
+      "lastSeen": "2026-07-02T12:00:00Z"
+    },
+    {
+      "id": "DEMO-TEST-002",
+      "layer": "demo",
+      "severity": "SHOULD",
+      "source": "[`.agents/rules/testing.md`](rules/testing.md)",
+      "candidate": 6,
+      "applied": 2,
+      "deviations": 0,
+      "unwaivedMust": 0,
+      "rate": 0.3333333333333333,
+      "lastSeen": "2026-06-29T12:00:00Z"
+    },
+    {
+      "id": "DEMO-TEST-003",
+      "layer": "demo",
+      "severity": "MAY",
+      "source": "[`.agents/rules/testing.md`](rules/testing.md)",
+      "candidate": 0,
+      "applied": 0,
+      "deviations": 0,
+      "unwaivedMust": 0,
+      "rate": null,
+      "lastSeen": null
+    }
+  ],
+  "flags": {
+    "deadRules": [
+      "DEMO-TEST-003"
+    ],
+    "alwaysCandidateNeverApplied": [
+      "DEMO-ROOT-003"
+    ],
+    "lowRate": [
+      {
+        "id": "DEMO-ROOT-002",
+        "rate": 0.06451612903225806
+      },
+      {
+        "id": "DEMO-ROOT-003",
+        "rate": 0
+      },
+      {
+        "id": "DEMO-TEST-002",
+        "rate": 0.3333333333333333
+      }
+    ],
+    "unwaivedMustGaps": [
+      {
+        "id": "DEMO-ROOT-001",
+        "count": 10
+      },
+      {
+        "id": "DEMO-ROOT-002",
+        "count": 29
+      }
+    ],
+    "stale": [
+      {
+        "id": "DEMO-ROOT-004",
+        "lastSeen": "2026-05-28T12:00:00Z"
+      }
+    ],
+    "unknownIds": [
+      {
+        "id": "DEMO-OLD-999",
+        "count": 2
+      }
+    ]
+  }
+}
