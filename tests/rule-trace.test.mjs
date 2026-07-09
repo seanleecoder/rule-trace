@@ -776,6 +776,33 @@ test('report dedupes, handles legacy coverage, staleness, and --since windows', 
   assert.match(fs.readFileSync(res.outHtml, 'utf8'), /Stale/)
 })
 
+test('legacy-only report keeps coverage unknown and renders an em dash', () => {
+  const dir = writeReportFixture()
+  writeJsonl(path.join(dir, '.agents', 'metrics', 'traces.jsonl'), [
+    {
+      uuid: 'legacy-1',
+      candidate: ['ROOT-001'],
+      applied: ['ROOT-001'],
+      deviations: [],
+    },
+    {
+      uuid: 'legacy-2',
+      candidate: ['ROOT-001'],
+      applied: [],
+      deviations: ['ROOT-001'],
+    },
+  ])
+  const res = runReport(dir)
+  assert.equal(res.status, 0, res.out)
+  const data = JSON.parse(fs.readFileSync(res.outJson, 'utf8'))
+  assert.deepEqual(data.coverage, { traced: 0, untraced: 0, rate: null })
+  assert.equal(data.table.find(r => r.id === 'ROOT-001').candidate, 2)
+  assert.match(
+    fs.readFileSync(res.outHtml, 'utf8'),
+    /<b>—<\/b><span>0 of 0 responses traced<\/span>/,
+  )
+})
+
 test('report rejects an invalid --since value', () => {
   const dir = writeReportFixture()
   writeJsonl(path.join(dir, '.agents', 'metrics', 'traces.jsonl'), [])
