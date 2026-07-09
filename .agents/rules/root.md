@@ -12,7 +12,7 @@
 - Scope: releases and package metadata
 - Applies when: changing package version, skill metadata, generated install docs, or release examples
 - Severity: MUST
-- Rule: Keep the package and skill version references in lockstep across `package.json`, `skills/rule-trace/metadata.json`, `CHANGELOG.md`, and release docs.
+- Rule: Keep the package and skill version references in lockstep across `package.json`, `.claude-plugin/plugin.json`, `skills/rule-trace/metadata.json`, and the `version:` frontmatter in `skills/rule-trace/SKILL.md`.
 
 ## ROOT-003
 

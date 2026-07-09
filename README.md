@@ -4,9 +4,9 @@
 
 See which agent rules actually shaped the work.
 
-> **Screenshot TODO:** add `docs/dashboard.png` from `examples/demo/.agents/metrics/dashboard.html` once working from a dev environment with browser screenshot tooling; it is omitted from this branch so the PR can be created without a binary diff.
+**Today:** every substantive agent response ends with a clickable, reviewable trace — which rules were candidates, which shaped the work, and why any rule was waived — instead of trusting "the agent followed project rules" as an unverifiable claim.
 
-Today, rule-trace makes each substantive agent response end with a clickable, reviewable trace: which rules were candidates, which shaped the work, and why any rule was waived. Over weeks, the counters show which rules to delete, narrow, or rewrite.
+**Over weeks:** the counters turn those traces into maintenance signal — which rules are dead, which are always loaded but never applied, and which `MUST` rules keep getting silently skipped.
 
 `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, and tool configs are easy to grow and hard to debug. After a few weeks, you usually cannot tell which instructions are still useful, which ones are noise, or whether Claude, OpenCode, Codex, Cursor, and other tools are even loading the same rules.
 
@@ -21,6 +21,8 @@ Rules loaded into a coding agent are *loaded* context, not *applied* context. A 
 
 Background: [Making AI-agent rule application visible - stable IDs and trace blocks](https://seanleecoder.hashnode.dev/making-ai-agent-rule-application-visible-stable-ids-and-trace-blocks).
 
+![rule-trace dashboard flagging dead, low-rate, and un-waived MUST rules from seeded demo data](docs/dashboard.png)
+
 ## Why Use It
 
 Use this when your agent rules have become important enough to break things, but still invisible enough that no one can inspect them.
@@ -32,7 +34,7 @@ Use this when your agent rules have become important enough to break things, but
 - Fail CI when a catalog ID no longer resolves to a heading, a rule is missing required fields, an importer drifts, or `.opencode/opencode.json` is malformed.
 - Keep supported importer entry points referencing the same canonical rule files when a repo uses more than one agent tool; see the importer support matrix for which tools actually expand references.
 
-This repository dogfoods rule-trace: `.agents/` contains the live migrated rule set, while `CLAUDE.md` and `AGENTS.md` show the thin-importer end state. See `examples/demo/` for seeded metrics and a generated dashboard.
+This repository dogfoods rule-trace: `.agents/` contains the live migrated rule set, while `CLAUDE.md` and `AGENTS.md` show the thin-importer end state — though per the importer support matrix in [`importer-wiring.md`](skills/rule-trace/references/importer-wiring.md), this repo's own root `AGENTS.md` uses `@`-imports whose expansion is unconfirmed for Codex CLI. See `examples/demo/` for seeded metrics and a generated dashboard.
 
 This is not compliance theater. Counts are self-reported by the model, so they are an audit signal, not proof. The value is that previously invisible rule behavior becomes reviewable.
 

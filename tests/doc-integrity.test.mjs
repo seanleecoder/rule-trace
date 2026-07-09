@@ -96,9 +96,8 @@ test('committed demo validates cleanly', () => {
   assert.doesNotMatch(res.stdout, /⚠/, 'demo validation should have no warnings')
 })
 
-test('README carries the dashboard screenshot follow-up reminder', () => {
+test('README embeds the dashboard screenshot', () => {
   const readme = fs.readFileSync(path.join(repoRoot, 'README.md'), 'utf8')
-  assert.match(readme, /Screenshot TODO/)
   assert.match(readme, /docs\/dashboard\.png/)
-  assert.equal(fs.existsSync(path.join(repoRoot, 'docs', 'dashboard.png')), false)
+  assert.equal(fs.existsSync(path.join(repoRoot, 'docs', 'dashboard.png')), true)
 })
