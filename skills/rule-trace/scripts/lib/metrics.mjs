@@ -20,11 +20,13 @@ export function eventFromAssistant(record, { source, transcript }) {
   const trace = parseTraceBlock(assistantText(record))
   if (!trace) return null
   return {
+    v: 1,
     uuid: record.uuid || null,
     sessionId: record.sessionId || record.session_id || null,
     timestamp: record.timestamp || null,
     source,
     transcript,
+    traced: true,
     candidate: trace.candidate,
     applied: trace.applied,
     deviations: trace.deviations,

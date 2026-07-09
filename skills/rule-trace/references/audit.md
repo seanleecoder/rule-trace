@@ -28,6 +28,7 @@ How to maintain a traceable rule set over time — combining repo state, usage d
    - `deadRules` (never a candidate) → the rule's `Applies when` is wrong/too narrow, or it's noise → Revise or Remove.
    - `alwaysCandidateNeverApplied` / `lowRate` → miscoped, redundant, or ignored → tighten scope, consolidate, or remove.
    - `unwaivedMustGaps` → a MUST rule was in scope but neither applied nor waived → investigate whether it's ignored or poorly worded.
+   - `stale` → the rule used to matter but has not surfaced recently; the repo may have changed or the trigger may have rotted → Revise or Remove.
    - `unknownIds` → a cited ID has no catalog entry (stale or hallucinated) → fix the citing pattern, restore the rule, or correct the catalog.
 6. **Classify** each item: `Keep` / `Revise` / `Remove` / `Consolidate` / `Add`.
 7. **Look specifically for:** missing or moved referenced files; duplicate rules split across root vs topic/package files; rules too broad for their file; commands whose instructions no longer match repo layout/tooling; session-proven patterns worth codifying; contradictions between current rules and what the session showed was correct.

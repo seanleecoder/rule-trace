@@ -52,7 +52,7 @@ Extraction is agent judgment; the validator is the deterministic check on the ou
 Maintain the rules by combining repo state, *quantitative* usage evidence, and the current session into concrete edits. **Follow `references/audit.md` in full** — it has the method, parameters (`scope`/`paths`/`session`/`usage`/`apply`), the `report.json` flag interpretation, the output template, and the rules of thumb. In short:
 
 1. Build the latest report: `node <skill>/scripts/report.mjs --root <repo>` (writes `report.json` + `dashboard.html` under the metrics dir).
-2. Read its flags (dead / always-candidate-never-applied / low-rate / un-waived MUST / unknown IDs) and combine with session evidence.
+2. Read its flags (dead / stale / always-candidate-never-applied / low-rate / un-waived MUST / unknown IDs) and combine with session evidence.
 3. Classify each rule Keep / Revise / Remove / Consolidate / Add, in the narrowest correct file; if applying fixes, keep to low-risk ones.
 4. Re-validate and regenerate the catalog after edits.
 
@@ -65,7 +65,7 @@ See "Counters" below.
 Trace blocks already emit candidate + applied IDs in every relevant response, so the data exists in transcripts — it just needs collecting. Two collectors share one append-only event log (`<metricsDir>/traces.jsonl`), deduped by transcript message UUID so they never double-count:
 
 - **Offline backfill (tool-agnostic):** `node <skill>/scripts/parse-traces.mjs --root <repo>` walks saved Claude Code transcripts (default `~/.claude/projects/<encoded-cwd>/`) and appends any trace blocks it finds. Re-runnable; retroactive over history. Point `--transcripts <dir>` at another tool's transcript store if its records expose `uuid` + an assistant `message.content`.
-- **Live Stop-hook (Claude Code only):** wire `scripts/record-trace.mjs` as a `Stop` hook (see `references/importer-wiring.md`). It records each finished main-agent response automatically. Ignores `SubagentStop`; never blocks the agent. The plugin install already wires this hook, so the manual hook is for standalone installs only — never both, or the recorder runs twice per turn.
+- **Live Stop-hook (Claude Code only):** wire `scripts/record-trace.mjs` as a `Stop` hook (see `references/importer-wiring.md`). It records each finished main-agent response automatically, including untraced responses so reports can state trace coverage. Ignores `SubagentStop`; never blocks the agent. The plugin install already wires this hook, so the manual hook is for standalone installs only — never both, or the recorder runs twice per turn.
 
 Then `node <skill>/scripts/report.mjs --root <repo>` aggregates the log into per-rule candidate/applied/rate plus the flag lists, writing `report.json` and a self-contained `dashboard.html`. To publish the dashboard as a shareable Artifact, render the generated HTML with the Artifact tool.
 
