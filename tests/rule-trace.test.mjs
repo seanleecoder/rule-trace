@@ -1064,5 +1064,6 @@ test('validator and sync refuse to clobber existing generated files without mark
   const res = runScript(SYNC, ['--root', dir])
   assert.equal(res.status, 1)
   assert.match(res.out, /has no rule-trace generated markers/)
+  assert.doesNotMatch(res.out, /generated importers are stale/)
   assert.equal(fs.readFileSync(generated, 'utf8'), 'user content without generated markers\n')
 })

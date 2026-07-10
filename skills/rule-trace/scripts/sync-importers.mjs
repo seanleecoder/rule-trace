@@ -18,12 +18,16 @@ const args = parseArgs(process.argv.slice(2))
 const config = loadConfig(args.root)
 const importers = (config.importers || []).filter(i => i.type === 'generated')
 const stale = []
+const failures = []
 
 for (const importer of importers) {
   if (args.check) {
     const status = generatedImporterStatus(args.root, config, importer)
     if (status.state === 'fresh') console.log(`  unchanged ${importer.path}`)
-    else {
+    else if (status.state === 'missing-markers') {
+      failures.push(importer.path)
+      console.error(`  ✗ Generated importer ${importer.path} exists but has no rule-trace generated markers; move user content outside a generated marker block or remove the file before syncing.`)
+    } else {
       stale.push(importer.path)
       console.log(`  stale ${importer.path}`)
     }
@@ -32,7 +36,7 @@ for (const importer of importers) {
       const action = writeGeneratedImporter(args.root, config, importer)
       console.log(`  ${action} ${importer.path}`)
     } catch (err) {
-      stale.push(importer.path)
+      failures.push(importer.path)
       console.error(`  ✗ ${err.message}`)
     }
   }
@@ -41,6 +45,6 @@ for (const importer of importers) {
 if (!importers.length) console.log('  no generated importers configured')
 if (stale.length) {
   console.error(`  ✗ generated importers are stale; run rule-trace sync: ${stale.join(', ')}`)
-  process.exit(1)
 }
+if (stale.length || failures.length) process.exit(1)
 process.exit(0)
