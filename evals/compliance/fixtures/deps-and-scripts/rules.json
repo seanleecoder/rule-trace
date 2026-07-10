@@ -1,1 +1,5 @@
-[{"id":"DEPS-001","text":"Use pnpm, never npm."},{"id":"DEPS-002","text":"Never edit package.json scripts without updating docs/scripts.md."}]
+[
+  {"id":"DEPS-001","text":"Use pnpm, never npm."},
+  {"id":"DEPS-002","text":"Never edit package.json scripts without updating docs/scripts.md."},
+  {"id":"DEPS-003","text":"When adding scripts, preserve the existing test script."}
+]

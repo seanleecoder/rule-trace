@@ -1,3 +1,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
-export default [{ ruleId: 'TEST-001', description: 'new module has matching test', check: dir => fs.existsSync(path.join(dir, 'src', 'math.js')) && fs.existsSync(path.join(dir, 'tests', 'math.test.js')) && fs.readFileSync(path.join(dir, 'tests', 'math.test.js'), 'utf8').includes('math') }]
+function read(file) { return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '' }
+function walk(dir) { return fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]) : [] }
+export default [
+  { ruleId: 'TEST-001', description: 'new module has matching test', check: dir => fs.existsSync(path.join(dir, 'src', 'math.js')) && fs.existsSync(path.join(dir, 'tests', 'math.test.js')) },
+  { ruleId: 'TEST-002', description: 'tests live outside src', check: dir => walk(path.join(dir, 'src')).every(f => !/\.test\.js$/.test(f)) },
+  { ruleId: 'TEST-003', description: 'math test references math module', check: dir => /\.\.\/src\/math(?:\.js)?/.test(read(path.join(dir, 'tests', 'math.test.js'))) },
+]

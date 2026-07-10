@@ -22,17 +22,17 @@ test('compliance checks distinguish compliant and violating trees', async () => 
     const good = tmp()
     const bad = tmp()
     if (fixture === 'deps-and-scripts') {
-      fs.mkdirSync(path.join(good, 'docs'), { recursive: true }); fs.writeFileSync(path.join(good, 'docs', 'scripts.md'), 'lint')
-      fs.mkdirSync(path.join(bad, 'docs'), { recursive: true }); fs.writeFileSync(path.join(bad, 'package-lock.json'), '{}'); fs.writeFileSync(path.join(bad, 'docs', 'scripts.md'), 'test')
+      fs.mkdirSync(path.join(good, 'docs'), { recursive: true }); fs.writeFileSync(path.join(good, 'docs', 'scripts.md'), 'lint'); fs.writeFileSync(path.join(good, 'package.json'), JSON.stringify({ scripts: { test: 'node --test', lint: 'eslint .' } }))
+      fs.mkdirSync(path.join(bad, 'docs'), { recursive: true }); fs.writeFileSync(path.join(bad, 'package-lock.json'), '{}'); fs.writeFileSync(path.join(bad, 'docs', 'scripts.md'), 'test'); fs.writeFileSync(path.join(bad, 'package.json'), JSON.stringify({ scripts: { test: 'vitest', lint: 'eslint .' } }))
     } else if (fixture === 'layering') {
       fs.mkdirSync(path.join(good, 'src', 'components'), { recursive: true }); fs.writeFileSync(path.join(good, 'src', 'components', 'User.js'), 'import x from "../repositories/users"')
-      fs.mkdirSync(path.join(bad, 'src', 'components'), { recursive: true }); fs.writeFileSync(path.join(bad, 'src', 'components', 'User.js'), 'const db = require("../db/client")')
+      fs.mkdirSync(path.join(bad, 'src', 'components'), { recursive: true }); fs.writeFileSync(path.join(bad, 'src', 'components', 'User.js'), 'const db = require("../db/client")'); fs.writeFileSync(path.join(bad, 'src', 'components', 'client.js'), 'db client')
     } else if (fixture === 'tests-required') {
-      fs.mkdirSync(path.join(good, 'src'), { recursive: true }); fs.mkdirSync(path.join(good, 'tests'), { recursive: true }); fs.writeFileSync(path.join(good, 'src', 'math.js'), ''); fs.writeFileSync(path.join(good, 'tests', 'math.test.js'), 'math')
-      fs.mkdirSync(path.join(bad, 'src'), { recursive: true }); fs.writeFileSync(path.join(bad, 'src', 'math.js'), '')
+      fs.mkdirSync(path.join(good, 'src'), { recursive: true }); fs.mkdirSync(path.join(good, 'tests'), { recursive: true }); fs.writeFileSync(path.join(good, 'src', 'math.js'), ''); fs.writeFileSync(path.join(good, 'tests', 'math.test.js'), 'import "../src/math.js"')
+      fs.mkdirSync(path.join(bad, 'src'), { recursive: true }); fs.writeFileSync(path.join(bad, 'src', 'math.js'), ''); fs.writeFileSync(path.join(bad, 'src', 'math.test.js'), 'math')
     } else if (fixture === 'secrets-hygiene') {
-      fs.mkdirSync(path.join(good, 'src'), { recursive: true }); fs.writeFileSync(path.join(good, 'src', 'config.js'), 'process.env.API')
-      fs.mkdirSync(path.join(bad, 'src'), { recursive: true }); fs.writeFileSync(path.join(bad, 'src', 'api.js'), 'process.env.API')
+      fs.mkdirSync(path.join(good, 'src'), { recursive: true }); fs.writeFileSync(path.join(good, 'src', 'config.js'), 'process.env.API_BASE_URL')
+      fs.mkdirSync(path.join(bad, 'src'), { recursive: true }); fs.writeFileSync(path.join(bad, 'src', 'config.js'), 'export const apiBaseUrl = "https://example.com"'); fs.writeFileSync(path.join(bad, 'src', 'api.js'), 'process.env.API_BASE_URL')
     }
     for (const check of checks) {
       assert.equal(check.check(good), true, `${fixture} ${check.ruleId} good`)

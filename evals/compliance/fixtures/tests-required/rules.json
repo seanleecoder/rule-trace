@@ -1,1 +1,5 @@
-[{"id":"TEST-001","text":"Every new module ships a test."}]
+[
+  {"id":"TEST-001","text":"Every new module ships a test."},
+  {"id":"TEST-002","text":"Tests belong under tests/, not next to src modules."},
+  {"id":"TEST-003","text":"Tests must import or reference the module they cover."}
+]
