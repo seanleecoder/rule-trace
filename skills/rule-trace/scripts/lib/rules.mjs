@@ -185,6 +185,7 @@ export function catalogIdSet(catalogRows) {
 // Extract the rule-file references an importer loads, normalized to posix-relative
 // paths, so the three importers can be compared for drift.
 export function readImporterImports(root, importer) {
+  if (importer.type === 'generated') return null
   const abs = path.join(root, importer.path)
   if (!fs.existsSync(abs)) return null
   const content = fs.readFileSync(abs, 'utf8')
@@ -213,9 +214,107 @@ function normalizeImport(p) {
   return p.replace(/^\.\//, '').replace(/\\/g, '/').trim()
 }
 
-// Find and parse a "Rule trace" block in an assistant message's text.
+export const GENERATED_BEGIN = '<!-- rule-trace:generated:begin (do not edit between markers; run sync-importers) -->'
+export const GENERATED_END = '<!-- rule-trace:generated:end -->'
+
+export function canonicalRuleContent(root, config) {
+  const parts = []
+  const convention = path.join(root, '.agents', 'rule-trace.md')
+  if (fs.existsSync(convention)) {
+    parts.push(`# .agents/rule-trace.md\n\n${fs.readFileSync(convention, 'utf8').trim()}\n`)
+  }
+  for (const rel of listRuleFiles(root, config)) {
+    parts.push(`# ${normalizeImport(rel)}\n\n${fs.readFileSync(path.join(root, rel), 'utf8').trim()}\n`)
+  }
+  return parts.join('\n')
+}
+
+function generatedFrontmatter(importer) {
+  const flavor = importer.flavor || 'plain-md'
+  if (flavor === 'cursor-mdc') {
+    const description = importer.description || 'rule-trace canonical rules and trace convention'
+    const globs = importer.globs || '**/*'
+    return `---\ndescription: ${description}\nalwaysApply: true\nglobs: ${globs}\n---\n\n`
+  }
+  return ''
+}
+
+export function renderGeneratedImporter(root, config, importer) {
+  const body = `${GENERATED_BEGIN}\n${canonicalRuleContent(root, config)}${GENERATED_END}\n`
+  return `${generatedFrontmatter(importer)}${body}`
+}
+
+export function generatedImporterStatus(root, config, importer) {
+  const abs = path.join(root, importer.path)
+  if (!fs.existsSync(abs)) return { state: 'missing', expected: renderGeneratedImporter(root, config, importer) }
+  const current = fs.readFileSync(abs, 'utf8')
+  const expected = renderGeneratedImporter(root, config, importer)
+  const begin = current.indexOf(GENERATED_BEGIN)
+  const end = current.indexOf(GENERATED_END)
+  if (begin === -1 || end === -1 || end < begin) return { state: 'stale', current, expected }
+  const endAfter = end + GENERATED_END.length
+  const expectedBegin = expected.indexOf(GENERATED_BEGIN)
+  const expectedEndAfter = expected.indexOf(GENERATED_END) + GENERATED_END.length
+  const expectedRegion = expected.slice(expectedBegin, expectedEndAfter)
+  const currentRegion = current.slice(begin, endAfter)
+  return {
+    state: currentRegion === expectedRegion ? 'fresh' : 'stale',
+    current,
+    expected,
+    prefix: current.slice(0, begin),
+    suffix: current.slice(endAfter),
+    expectedRegion,
+  }
+}
+
+export function writeGeneratedImporter(root, config, importer) {
+  const abs = path.join(root, importer.path)
+  const status = generatedImporterStatus(root, config, importer)
+  fs.mkdirSync(path.dirname(abs), { recursive: true })
+  if (status.state === 'fresh') return 'unchanged'
+  if (status.state === 'missing') {
+    fs.writeFileSync(abs, status.expected)
+    return 'created'
+  }
+  const content = status.prefix === undefined
+    ? status.expected
+    : `${status.prefix}${status.expectedRegion}${status.suffix}`
+  fs.writeFileSync(abs, content)
+  return 'updated'
+}
+
+function normalizeTraceIds(value) {
+  if (!Array.isArray(value)) return []
+  return dedupe(value.filter(x => typeof x === 'string' && /^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+$/.test(x)))
+}
+
+export function parseFencedTrace(text) {
+  if (!text) return null
+  const re = /^\s*(`{3,4})rule-trace\s*\n([\s\S]*?)^\s*\1\s*$/gmi
+  let last = null
+  for (const m of text.matchAll(re)) last = m[2]
+  if (last === null) return null
+  let parsed
+  try {
+    parsed = JSON.parse(last)
+  } catch {
+    return null
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || typeof parsed.v !== 'number') return null
+  return {
+    candidate: normalizeTraceIds(parsed.candidate),
+    applied: normalizeTraceIds(parsed.applied),
+    deviations: normalizeTraceIds(parsed.deviations),
+  }
+}
+
+// Find and parse a trace in assistant text. Fenced `rule-trace` JSON is the
+// authoritative machine-readable layer when present and valid; prose is the
+// permanent human-readable fallback and is not merged with fenced data.
 // Returns { candidate: string[], applied: string[], deviations: string[] } or null.
 export function parseTraceBlock(text) {
+  const fenced = parseFencedTrace(text)
+  if (fenced) return fenced
   if (!text) return null
   const lines = text.split('\n')
   let start = -1
@@ -259,6 +358,31 @@ export function parseTraceBlock(text) {
     applied: dedupe(applied),
     deviations: dedupe(deviations),
   }
+}
+
+export function parseAllTraceBlocks(text) {
+  if (!text) return []
+  const blocks = []
+  const fenceRe = /^\s*`{3,4}rule-trace\s*\n[\s\S]*?^\s*`{3,4}\s*$/gmi
+  for (const m of text.matchAll(fenceRe)) {
+    const parsed = parseFencedTrace(m[0])
+    if (parsed) blocks.push(parsed)
+  }
+  const lines = text.split('\n')
+  for (let i = 0; i < lines.length; i++) {
+    if (!/^\s*#{0,4}\s*\*{0,2}Rule trace\*{0,2}\s*:?\s*$/i.test(lines[i])) continue
+    let end = lines.length
+    for (let j = i + 1; j < lines.length; j++) {
+      if (/^#{1,2}\s/.test(lines[j])) {
+        end = j
+        break
+      }
+    }
+    const parsed = parseTraceBlock(lines.slice(i, end).join('\n'))
+    if (parsed) blocks.push(parsed)
+    i = end - 1
+  }
+  return blocks
 }
 
 function dedupe(arr) {

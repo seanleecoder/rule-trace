@@ -102,6 +102,53 @@ test('parseTraceBlock returns null when there is no trace block', () => {
   assert.equal(parseTraceBlock('just a normal answer, no trace here'), null)
 })
 
+test('parseTraceBlock parses fenced-only JSON, dedupes, and drops invalid IDs', () => {
+  const trace = parseTraceBlock([
+    '```rule-trace',
+    '{"v":1,"candidate":["ROOT-001","ROOT-001","bad"],"applied":["TEST-002"]}',
+    '```',
+  ].join('\n'))
+  assert.deepEqual(trace, { candidate: ['ROOT-001'], applied: ['TEST-002'], deviations: [] })
+})
+
+test('parseTraceBlock treats valid fenced JSON as authoritative over prose', () => {
+  const text = [
+    'Rule trace',
+    '',
+    '- Candidate rules loaded: [`ROOT-999`](x)',
+    '',
+    '```rule-trace',
+    '{"v":1,"candidate":["ROOT-001"],"applied":[],"deviations":[]}',
+    '```',
+  ].join('\n')
+  assert.deepEqual(parseTraceBlock(text).candidate, ['ROOT-001'])
+})
+
+test('parseTraceBlock falls back from malformed fenced JSON to prose', () => {
+  const text = [
+    'Rule trace',
+    '',
+    '- Candidate rules loaded: [`ROOT-001`](x)',
+    '',
+    '```rule-trace',
+    'not json',
+    '```',
+  ].join('\n')
+  assert.deepEqual(parseTraceBlock(text).candidate, ['ROOT-001'])
+})
+
+test('parseTraceBlock uses the last fenced trace block', () => {
+  const text = [
+    '```rule-trace',
+    '{"v":1,"candidate":["ROOT-001"]}',
+    '```',
+    '```rule-trace',
+    '{"v":1,"candidate":["ROOT-002"]}',
+    '```',
+  ].join('\n')
+  assert.deepEqual(parseTraceBlock(text).candidate, ['ROOT-002'])
+})
+
 // --- fixture-based validator cases ---
 function writeFixture() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-fixture-'))
@@ -191,12 +238,12 @@ test('missing severity fails by default but passes with --no-severity', () => {
   assert.equal(runValidator(dir, ['--no-severity']).status, 0)
 })
 
-test('trace-lint flags an unknown cited ID', () => {
+test('trace-lint flags an unknown cited ID in a second trace block', () => {
   const dir = writeFixture()
   const traceFile = path.join(dir, 'response.md')
   fs.writeFileSync(
     traceFile,
-    'Rule trace\n\n- Candidate rules loaded: [`ROOT-001`](x), [`ROOT-999`](y)\n',
+    'Rule trace\n\n- Candidate rules loaded: [`ROOT-001`](x)\n\n## Next\n\nRule trace\n\n- Candidate rules loaded: [`ROOT-999`](y)\n',
   )
   const { status, out } = runValidator(dir, ['--lint-file', traceFile])
   assert.equal(status, 1)
@@ -246,6 +293,10 @@ const SCAFFOLD = path.join(
 const REPORT = path.join(
   repoRoot,
   'skills/rule-trace/scripts/report.mjs',
+)
+const SYNC = path.join(
+  repoRoot,
+  'skills/rule-trace/scripts/sync-importers.mjs',
 )
 
 function runScript(script, args = []) {
@@ -346,7 +397,7 @@ test('cli.mjs loads and its help lists every subcommand', () => {
   )
   const { status, out } = runScript(CLI, ['--help'])
   assert.equal(status, 0, out)
-  for (const cmd of ['validate', 'parse', 'report', 'catalog', 'scaffold']) {
+  for (const cmd of ['validate', 'parse', 'report', 'catalog', 'scaffold', 'sync']) {
     assert.match(out, new RegExp(`\\b${cmd}\\b`), `help should list ${cmd}`)
   }
 })
@@ -809,4 +860,44 @@ test('report rejects an invalid --since value', () => {
   const res = runScript(REPORT, ['--root', dir, '--since', 'banana'])
   assert.equal(res.status, 1)
   assert.match(res.out, /banana/)
+})
+
+
+test('sync-importers creates deterministic cursor-mdc generated importers and validator checks freshness', () => {
+  const dir = writeFixture()
+  fs.writeFileSync(path.join(dir, '.agents', 'rule-trace.config.json'), JSON.stringify({
+    packageRuleGlobs: [],
+    importers: [
+      { path: 'CLAUDE.md', type: 'at-import' },
+      { path: 'AGENTS.md', type: 'at-import' },
+      { path: '.cursor/rules/rule-trace.mdc', type: 'generated', flavor: 'cursor-mdc' },
+    ],
+  }))
+  const first = runScript(SYNC, ['--root', dir])
+  assert.equal(first.status, 0, first.out)
+  assert.match(first.out, /created .*rule-trace\.mdc/)
+  const generated = path.join(dir, '.cursor', 'rules', 'rule-trace.mdc')
+  const bytes1 = fs.readFileSync(generated, 'utf8')
+  assert.match(bytes1, /description:/)
+  assert.match(bytes1, /alwaysApply: true/)
+  assert.match(bytes1, /rule-trace:generated:begin/)
+  assert.match(bytes1, /## ROOT-001/)
+  const second = runScript(SYNC, ['--root', dir])
+  assert.equal(second.status, 0, second.out)
+  assert.match(second.out, /unchanged/)
+  assert.equal(fs.readFileSync(generated, 'utf8'), bytes1)
+  assert.equal(runValidator(dir).status, 0)
+  fs.appendFileSync(path.join(dir, '.agents', 'rules', 'root.md'), '\n<!-- changed -->\n')
+  const stale = runValidator(dir)
+  assert.equal(stale.status, 1)
+  assert.match(stale.out, /rule-trace\.mdc.*stale|stale.*rule-trace\.mdc/)
+  const check = runScript(SYNC, ['--root', dir, '--check'])
+  assert.equal(check.status, 1)
+  assert.equal(fs.readFileSync(generated, 'utf8'), bytes1, '--check must not write')
+  fs.writeFileSync(generated, `PREFACE\n${bytes1}\nTAIL\n`)
+  assert.equal(runScript(SYNC, ['--root', dir]).status, 0)
+  const withUserContent = fs.readFileSync(generated, 'utf8')
+  assert.ok(withUserContent.startsWith('PREFACE\n'))
+  assert.ok(withUserContent.endsWith('\nTAIL\n'))
+  assert.equal(runScript(SYNC, ['--root', dir, '--check']).status, 0)
 })

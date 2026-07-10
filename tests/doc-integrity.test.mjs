@@ -145,3 +145,19 @@ test('README embeds the dashboard screenshot', () => {
   assert.match(readme, /docs\/dashboard\.png/)
   assert.equal(fs.existsSync(path.join(repoRoot, 'docs', 'dashboard.png')), true)
 })
+
+
+test('trace labels and fenced tag stay in lockstep across parser, docs, template, and grader', () => {
+  const rels = [
+    'skills/rule-trace/scripts/lib/rules.mjs',
+    'skills/rule-trace/references/convention.md',
+    'skills/rule-trace/templates/rule-trace.md.tmpl',
+    'evals/grade.mjs',
+  ]
+  for (const rel of rels) {
+    const text = fs.readFileSync(path.join(repoRoot, rel), 'utf8')
+    for (const token of ['Candidate rules loaded', 'Rules applied', 'Deviations', 'rule-trace']) {
+      assert.ok(text.includes(token), `${rel} must include ${token}`)
+    }
+  }
+})

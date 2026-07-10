@@ -10,7 +10,7 @@ Omit it only when no rule materially shaped the response (a purely conversationa
 
 ## Format
 
-```md
+````md
 Rule trace
 
 - Candidate rules loaded: <linked IDs plausibly in scope>
@@ -18,7 +18,13 @@ Rule trace
 - Sources: <files defining the cited IDs>
 - Reasoning note: <why those rules mattered for this result>
 - Deviations: <in-scope rule deliberately NOT applied — ID + one-line justification> (omit if none)
+
+```rule-trace
+{"v":1,"candidate":["ROOT-001"],"applied":["ROOT-001"],"deviations":[]}
 ```
+````
+
+The fenced `rule-trace` JSON block is the machine-stable data layer; the prose remains the reviewer-facing artifact. When both are present, tooling reads the fenced block first and falls back to prose only if the JSON is absent or invalid.
 
 ## Semantics
 

@@ -83,6 +83,10 @@ test('grade requires the rule-trace convention to include trace template fields'
       '- Reasoning note: ...',
       '- Deviations: ...',
       '',
+      '```rule-trace',
+      '{"v":1,"candidate":[],"applied":[],"deviations":[]}',
+      '```',
+      '',
     ].join('\n'),
   )
   result = grade(dir)

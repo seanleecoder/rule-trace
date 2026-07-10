@@ -9,10 +9,10 @@ The validator can prove that configured entry points reference the same files. I
 | Claude Code | `CLAUDE.md`; project memory can also include imported files | `@path` imports in memory files | Yes for `@` imports; nested imports are expanded recursively | Anthropic Claude Code memory docs: https://docs.anthropic.com/en/docs/claude-code/memory#claude-md-imports |
 | OpenAI Codex CLI | `AGENTS.md` | Plain markdown instructions | No evidence that `@path` includes are expanded; treat `@` lines as text | OpenAI Codex AGENTS.md guidance describes instruction files, not include expansion (docs-cited; no live probe run): https://github.com/openai/codex/blob/main/docs/agents.md |
 | OpenCode | `.opencode/opencode.json` | `instructions` array of files, globs, or remote URLs | Yes for the listed `instructions`; paths are resolved by OpenCode config semantics | OpenCode rules docs: https://opencode.ai/docs/rules/ |
-| Cursor | `.cursorrules`; `.cursor/rules/*.mdc` | Rule files selected by Cursor, not `@path` includes | No for `@` includes; use `.mdc` rule files directly | Cursor rules docs (docs-cited; no live probe run): https://docs.cursor.com/context/rules |
-| GitHub Copilot | `.github/copilot-instructions.md` | Plain markdown custom instructions | No for `@` includes; links/references are not expanded into instructions | GitHub Copilot custom instructions docs (docs-cited; no live probe run): https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-repository-instructions |
+| Cursor | `.cursorrules`; `.cursor/rules/*.mdc` | Generated `.mdc` rule file selected by Cursor | Yes when materialized with `type: generated`, `flavor: cursor-mdc`; no for `@` includes | Cursor rules docs (docs-cited; no live probe run): https://docs.cursor.com/context/rules |
+| GitHub Copilot | `.github/copilot-instructions.md` | Generated plain markdown custom instructions | Yes when materialized with `type: generated`, `flavor: copilot-md`; no for `@` includes | GitHub Copilot custom instructions docs (docs-cited; no live probe run): https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-repository-instructions |
 
-Each agent tool has its own entry point, but configured importers should reference the **identical set** of canonical rule files when that tool supports references. Drift between configured importers is the single most common way the system rots, so the validator treats any difference as an error. For tools that do not expand `@` lines, the interim workaround is to inline or duplicate the generated rule content in that tool's native format; spec 3.2 tracks generated importers so this duplication can be produced mechanically.
+Each agent tool has its own entry point, but configured importers should reference the **identical set** of canonical rule files when that tool supports references. Drift between configured importers is the single most common way the system rots, so the validator treats any difference as an error. For tools that do not expand `@` lines, use a generated importer so canonical `.agents/` content is materialized into that tool's native format and checked for freshness.
 
 **`CLAUDE.md`** uses `@`-imports — one per line, nothing else on the line:
 
@@ -43,7 +43,17 @@ Two consequences worth stating to the user:
 - **Keep importer entry points thin when the tool supports references.** They import; they don't define rules. Canonical content lives in `.agents/`.
 - **No nested `@`-imports inside rule files.** Claude Code would expand them recursively, but OpenCode's flat list and plain-markdown tools won't, so a nested import silently desyncs tools. Keep each rule file self-contained.
 
-Cursor and GitHub Copilot need native rule/instruction content until generated importers exist. Wire them by hand and note they're outside the parity check unless the config has a represented importer type for them.
+## Generated importers
+
+Use generated importers for tools that read native instruction files but do not expand `@` references, such as Cursor and GitHub Copilot. Add a config entry such as:
+
+```json
+{ "path": ".cursor/rules/rule-trace.mdc", "type": "generated", "flavor": "cursor-mdc" }
+```
+
+Then run `node <skill>/scripts/sync-importers.mjs --root <repo>` (or `rule-trace sync`) to create/update the file. The generated region is wrapped in `<!-- rule-trace:generated:begin ... -->` and `<!-- rule-trace:generated:end -->`; content outside those markers is user-owned and preserved. In CI, `sync-importers.mjs --check` or `validate-rules.mjs` fails stale generated importers with a “run rule-trace sync” error. Reference importers still participate in file-set parity; generated importers participate only in freshness checks.
+
+Supported flavors: `cursor-mdc` (adds Cursor `.mdc` frontmatter with `description`, `alwaysApply`, and `globs`), `copilot-md`, and `plain-md`.
 
 ## The Stop hook (Claude Code only)
 

@@ -46,4 +46,12 @@ The scripts resolve repo layout from an optional `.agents/rule-trace.config.json
 }
 ```
 
-Add a config when the target repo deviates — e.g. a non-monorepo with no `packageRuleGlobs`, a different importer set, or a `.cursorrules` entry point. `importers[].type` is `at-import` (lines like `@path/to/file.md`) or `opencode-instructions` (the JSON `instructions` array). Importers not present in the repo are skipped with a warning rather than failing the parity check.
+Add a config when the target repo deviates — e.g. a non-monorepo with no `packageRuleGlobs`, a different importer set, or a generated Cursor/Copilot entry point. `importers[].type` is `at-import` (lines like `@path/to/file.md`), `opencode-instructions` (the JSON `instructions` array), or `generated` (materialized canonical content between markers). Generated importers also set `flavor`: `cursor-mdc`, `copilot-md`, or `plain-md`. Importers not present in the repo are skipped with a warning rather than failing the parity/freshness check.
+
+Generated example:
+
+```json
+{ "path": ".cursor/rules/rule-trace.mdc", "type": "generated", "flavor": "cursor-mdc" }
+```
+
+Run `node <skill>/scripts/sync-importers.mjs --root <repo>` to write generated importers, or add `--check` in CI to fail when canonical rules changed without regeneration.
