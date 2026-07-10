@@ -136,7 +136,7 @@ Installs the same skill for Claude Code only, per developer (under `~/.claude/pl
 For CI-only validation, use the package CLI without an agent runtime:
 
 ```bash
-npx github:seanleecoder/rule-trace validate
+npx rule-trace@1 validate
 ```
 
 ## Quickstart
@@ -167,7 +167,7 @@ node <skill>/scripts/validate-rules.mjs --root <repo>
 node <skill>/scripts/parse-traces.mjs --root <repo> --transcripts <dir>
 
 # Build .agents/metrics/report.json and dashboard.html.
-node <skill>/scripts/report.mjs --root <repo> --low-rate 0.5 --min-candidates 3
+node <skill>/scripts/report.mjs --root <repo> --low-rate 0.5 --min-candidates 3 --min-coverage 0.2 --stale-days 30 --since 2026-01-01
 
 # Generate the catalog from rule headings, preserving curated summaries.
 node <skill>/scripts/generate-catalog.mjs --root <repo> --write
@@ -176,7 +176,9 @@ node <skill>/scripts/generate-catalog.mjs --root <repo> --write
 The CLI exposes the same core tools:
 
 ```bash
-npx github:seanleecoder/rule-trace <validate|parse|report|catalog|scaffold>
+npx rule-trace@1 <validate|parse|report|catalog|scaffold>
+# Pre-registry fallback (unpinned — prefer the registry):
+npx github:seanleecoder/rule-trace validate
 ```
 
 ## Counters And Dashboard
@@ -186,7 +188,9 @@ Trace blocks already carry candidate and applied IDs, so the data exists in tran
 - **Offline backfill:** `parse-traces.mjs` scans saved transcripts and appends trace blocks. It is re-runnable and tool-agnostic when the transcript records expose a UUID and assistant text.
 - **Live Claude Code hook:** `record-trace.mjs` records each finished main-agent response from a Claude Code `Stop` hook. The plugin wires this automatically; skills.sh and standalone installs can add the hook manually from `references/importer-wiring.md`.
 
-`report.mjs` writes `.agents/metrics/report.json` and `.agents/metrics/dashboard.html`. Tune noisy repos with `--low-rate <0..1>` and `--min-candidates <n>`.
+`report.mjs` writes `.agents/metrics/report.json` and `.agents/metrics/dashboard.html`. Tune noisy repos with `--low-rate <0..1>`, `--min-candidates <n>`, `--min-coverage <0..1>`, `--stale-days <n>`, and `--since <ISO-8601 date>`.
+
+The live hook also records finished main-agent responses that omit a trace block, letting the report show trace coverage and warn when coverage is too low to trust dead-rule or low-rate conclusions. Trivial or conversational responses may intentionally omit traces, so 100% coverage is not the target; coverage is a sanity and trend signal.
 
 The dashboard highlights:
 
@@ -194,6 +198,7 @@ The dashboard highlights:
 - `alwaysCandidateNeverApplied` - rules that came up but never constrained the work.
 - `lowRate` - rules below the configured application-rate threshold.
 - `unwaivedMustGaps` - `MUST` rules that were candidates but neither applied nor waived.
+- `stale` - rules that were candidates before but have not surfaced within the configured staleness window.
 - `unknownIds` - hallucinated or stale IDs cited by traces.
 
 ## Validation And CI

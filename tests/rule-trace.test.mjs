@@ -618,3 +618,195 @@ test('validator warns on a double-wire when the manual hook lives in USER settin
   assert.equal(status, 0, 'double-wiring is a warning, not an error')
   assert.match(out, /double-wired/)
 })
+
+function writeReportFixture() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-report-'))
+  fs.mkdirSync(path.join(dir, '.agents', 'rules'), { recursive: true })
+  fs.mkdirSync(path.join(dir, '.agents', 'metrics'), { recursive: true })
+  fs.writeFileSync(
+    path.join(dir, '.agents', 'rules', 'root.md'),
+    [
+      '# Rules',
+      '',
+      '## ROOT-001',
+      '- Scope: repository',
+      '- Applies when: always',
+      '- Severity: MUST',
+      '- Rule: do the thing',
+      '',
+      '## ROOT-002',
+      '- Scope: repository',
+      '- Applies when: sometimes',
+      '- Severity: SHOULD',
+      '- Rule: do another thing',
+      '',
+    ].join('\n'),
+  )
+  fs.writeFileSync(
+    path.join(dir, '.agents', 'rules-catalog.md'),
+    [
+      '# Catalog',
+      '',
+      '| Rule ID | Source | Severity |',
+      '| --- | --- | --- |',
+      '| `ROOT-001` | rules/root.md | MUST |',
+      '| `ROOT-002` | rules/root.md | SHOULD |',
+      '',
+    ].join('\n'),
+  )
+  return dir
+}
+
+function writeJsonl(file, records) {
+  fs.writeFileSync(file, records.map(r => JSON.stringify(r)).join('\n') + '\n')
+}
+
+function runReport(dir, extraArgs = []) {
+  const outJson = path.join(dir, 'report.json')
+  const outHtml = path.join(dir, 'dashboard.html')
+  const res = runScript(REPORT, [
+    '--root',
+    dir,
+    '--out-json',
+    outJson,
+    '--out-html',
+    outHtml,
+    ...extraArgs,
+  ])
+  return { ...res, outJson, outHtml }
+}
+
+test('record-trace writes traced, untraced, and deduped live coverage events', () => {
+  const dir = writeReportFixture()
+  const transcript = path.join(dir, 'session.jsonl')
+  writeJsonl(transcript, [
+    {
+      type: 'assistant',
+      uuid: 'untraced-final',
+      sessionId: 's1',
+      timestamp: '2026-01-01T00:00:00.000Z',
+      message: { content: [{ type: 'text', text: 'plain answer' }] },
+    },
+  ])
+  const payload = JSON.stringify({ cwd: dir, transcript_path: transcript, hook_event_name: 'Stop' })
+  let res = spawnSync(process.execPath, [path.join(repoRoot, 'skills/rule-trace/scripts/record-trace.mjs')], {
+    input: payload,
+    encoding: 'utf8',
+    env: HERMETIC_ENV,
+  })
+  assert.equal(res.status, 0)
+  let events = fs.readFileSync(path.join(dir, '.agents', 'metrics', 'traces.jsonl'), 'utf8').trim().split('\n').map(JSON.parse)
+  assert.equal(events.length, 1)
+  assert.equal(events[0].traced, false)
+  assert.equal(events[0].v, 1)
+
+  res = spawnSync(process.execPath, [path.join(repoRoot, 'skills/rule-trace/scripts/record-trace.mjs')], {
+    input: payload,
+    encoding: 'utf8',
+    env: HERMETIC_ENV,
+  })
+  assert.equal(res.status, 0)
+  events = fs.readFileSync(path.join(dir, '.agents', 'metrics', 'traces.jsonl'), 'utf8').trim().split('\n').map(JSON.parse)
+  assert.equal(events.length, 1, 'same UUID should dedupe')
+
+  writeJsonl(transcript, [
+    {
+      type: 'assistant',
+      uuid: 'traced-final',
+      sessionId: 's1',
+      timestamp: '2026-01-02T00:00:00.000Z',
+      message: { content: [{ type: 'text', text: 'Rule trace\n\n- Candidate rules loaded: [`ROOT-001`](x)\n- Rules applied: [`ROOT-001`](x)\n- Deviations: none' }] },
+    },
+  ])
+  res = spawnSync(process.execPath, [path.join(repoRoot, 'skills/rule-trace/scripts/record-trace.mjs')], {
+    input: payload,
+    encoding: 'utf8',
+    env: HERMETIC_ENV,
+  })
+  assert.equal(res.status, 0)
+  events = fs.readFileSync(path.join(dir, '.agents', 'metrics', 'traces.jsonl'), 'utf8').trim().split('\n').map(JSON.parse)
+  assert.equal(events.length, 2)
+  assert.equal(events[1].traced, true)
+  assert.equal(events[1].v, 1)
+  assert.deepEqual(events[1].candidate, ['ROOT-001'])
+})
+
+test('report computes coverage, ignores untraced counts, and warns below threshold', () => {
+  const dir = writeReportFixture()
+  const events = []
+  for (let i = 0; i < 6; i++) events.push({ uuid: `t${i}`, traced: true, candidate: ['ROOT-001'], applied: ['ROOT-001'], deviations: [], timestamp: '2026-01-01T00:00:00.000Z' })
+  for (let i = 0; i < 4; i++) events.push({ uuid: `u${i}`, traced: false, timestamp: '2026-01-01T00:00:00.000Z' })
+  writeJsonl(path.join(dir, '.agents', 'metrics', 'traces.jsonl'), events)
+  let res = runReport(dir)
+  assert.equal(res.status, 0, res.out)
+  let data = JSON.parse(fs.readFileSync(res.outJson, 'utf8'))
+  assert.deepEqual(data.coverage, { traced: 6, untraced: 4, rate: 0.6 })
+  assert.equal(data.table.find(r => r.id === 'ROOT-001').candidate, 6)
+
+  res = runReport(dir, ['--min-coverage', '0.7'])
+  data = JSON.parse(fs.readFileSync(res.outJson, 'utf8'))
+  assert.equal(data.coverage.lowCoverage, true)
+  assert.match(fs.readFileSync(res.outHtml, 'utf8'), /Low trace coverage/)
+})
+
+test('report dedupes, handles legacy coverage, staleness, and --since windows', () => {
+  const dir = writeReportFixture()
+  writeJsonl(path.join(dir, '.agents', 'metrics', 'traces.jsonl'), [
+    { uuid: 'dup', candidate: ['ROOT-001'], applied: ['ROOT-001'], deviations: [], timestamp: '2026-01-01T00:00:00.000Z' },
+    { uuid: 'dup', candidate: ['ROOT-001'], applied: ['ROOT-001'], deviations: [], timestamp: '2026-01-01T00:00:00.000Z' },
+    { uuid: 'old', traced: true, candidate: ['ROOT-002'], applied: [], deviations: [], timestamp: '2025-01-01T00:00:00.000Z' },
+    { uuid: 'undated', traced: true, candidate: ['ROOT-002'], applied: [], deviations: [] },
+  ])
+  let res = runReport(dir, ['--stale-days', '30'])
+  assert.equal(res.status, 0, res.out)
+  let data = JSON.parse(fs.readFileSync(res.outJson, 'utf8'))
+  assert.equal(data.duplicateEventsIgnored, 1)
+  assert.equal(data.coverage.rate, 1)
+  assert.equal(data.table.find(r => r.id === 'ROOT-001').candidate, 1)
+  assert.ok(data.flags.stale.some(x => x.id === 'ROOT-002'))
+
+  res = runReport(dir, ['--stale-days', '900'])
+  data = JSON.parse(fs.readFileSync(res.outJson, 'utf8'))
+  assert.ok(!data.flags.stale.some(x => x.id === 'ROOT-002'))
+
+  res = runReport(dir, ['--since', '2025-12-31T00:00:00.000Z'])
+  data = JSON.parse(fs.readFileSync(res.outJson, 'utf8'))
+  assert.equal(data.eventsOutsideWindowOrUndated, 2)
+  assert.equal(data.table.find(r => r.id === 'ROOT-002').candidate, 0)
+  assert.match(fs.readFileSync(res.outHtml, 'utf8'), /Stale/)
+})
+
+test('legacy-only report keeps coverage unknown and renders an em dash', () => {
+  const dir = writeReportFixture()
+  writeJsonl(path.join(dir, '.agents', 'metrics', 'traces.jsonl'), [
+    {
+      uuid: 'legacy-1',
+      candidate: ['ROOT-001'],
+      applied: ['ROOT-001'],
+      deviations: [],
+    },
+    {
+      uuid: 'legacy-2',
+      candidate: ['ROOT-001'],
+      applied: [],
+      deviations: ['ROOT-001'],
+    },
+  ])
+  const res = runReport(dir)
+  assert.equal(res.status, 0, res.out)
+  const data = JSON.parse(fs.readFileSync(res.outJson, 'utf8'))
+  assert.deepEqual(data.coverage, { traced: 0, untraced: 0, rate: null })
+  assert.equal(data.table.find(r => r.id === 'ROOT-001').candidate, 2)
+  assert.match(
+    fs.readFileSync(res.outHtml, 'utf8'),
+    /<b>—<\/b><span>0 of 0 responses traced<\/span>/,
+  )
+})
+
+test('report rejects an invalid --since value', () => {
+  const dir = writeReportFixture()
+  writeJsonl(path.join(dir, '.agents', 'metrics', 'traces.jsonl'), [])
+  const res = runScript(REPORT, ['--root', dir, '--since', 'banana'])
+  assert.equal(res.status, 1)
+  assert.match(res.out, /banana/)
+})
