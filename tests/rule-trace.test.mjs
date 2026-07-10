@@ -1046,7 +1046,7 @@ test('copilot-md generated importer renders markdown markers without frontmatter
   assert.match(generated, /## ROOT-001/)
 })
 
-test('sync-importers refuses to clobber existing generated files without markers', () => {
+test('validator and sync refuse to clobber existing generated files without markers', () => {
   const dir = writeFixture()
   fs.writeFileSync(path.join(dir, '.agents', 'rule-trace.config.json'), JSON.stringify({
     packageRuleGlobs: [],
@@ -1057,6 +1057,10 @@ test('sync-importers refuses to clobber existing generated files without markers
   const generated = path.join(dir, '.cursor', 'rules', 'rule-trace.mdc')
   fs.mkdirSync(path.dirname(generated), { recursive: true })
   fs.writeFileSync(generated, 'user content without generated markers\n')
+  const validation = runValidator(dir)
+  assert.equal(validation.status, 1)
+  assert.match(validation.out, /has no rule-trace generated markers/)
+  assert.doesNotMatch(validation.out, /run rule-trace sync/)
   const res = runScript(SYNC, ['--root', dir])
   assert.equal(res.status, 1)
   assert.match(res.out, /has no rule-trace generated markers/)

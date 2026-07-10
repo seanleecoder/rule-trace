@@ -134,6 +134,8 @@ function validate(root, opts) {
       const status = generatedImporterStatus(root, config, importer)
       if (status.state === 'missing') {
         warnings.push(`Importer ${importer.path} not found; skipping generated freshness check for it.`)
+      } else if (status.state === 'missing-markers') {
+        errors.push(`Generated importer ${importer.path} exists but has no rule-trace generated markers; move user content outside a generated marker block or remove the file before syncing.`)
       } else if (status.state !== 'fresh') {
         errors.push(`Generated importer ${importer.path} is stale; run rule-trace sync.`)
       }
