@@ -64,7 +64,15 @@ for (const fixture of fixtures) {
       const run = runAgent(inv, args.exec)
       const checks = args.exec ? await grade(fixture, dir) : []
       const trace = parseTraceBlock(`${run.stdout}\n${run.stderr}`)
-      records.push({ fixture, arm, trial, dir, checks, traceEmitted: Boolean(trace), traceCandidate: trace?.candidate || [], traceDeviations: trace?.deviations || [] })
+      const traceCandidate = trace?.candidate || []
+      const traceDeviations = trace?.deviations || []
+      const violations = checks.filter(c => !c.pass).map(c => ({
+        ruleId: c.ruleId,
+        description: c.description,
+        disclosedDeviation: traceDeviations.includes(c.ruleId),
+        citedCandidate: traceCandidate.includes(c.ruleId),
+      }))
+      records.push({ fixture, arm, trial, dir, checks, violations, traceEmitted: Boolean(trace), traceCandidate, traceDeviations })
     }
   }
 }
@@ -84,9 +92,9 @@ function summarize(rows, keys) {
 
 const byArm = arms.map(arm => summarize(records.filter(r => r.arm === arm), ['arm'])[0] || { arm, passed: 0, total: 0, rate: 0 })
 const byFixtureArm = summarize(records, ['fixture', 'arm']).sort((a, b) => a.fixture.localeCompare(b.fixture) || a.arm.localeCompare(b.arm))
-const violationsB = records.filter(r => r.arm === 'traced').flatMap(r => r.checks.filter(c => !c.pass).map(c => ({ record: r, check: c })))
-const disclosed = violationsB.filter(v => v.record.traceDeviations.includes(v.check.ruleId)).length
-const citedViolationRules = violationsB.filter(v => v.record.traceCandidate.includes(v.check.ruleId)).length
+const violationsB = records.filter(r => r.arm === 'traced').flatMap(r => r.violations)
+const disclosed = violationsB.filter(v => v.disclosedDeviation).length
+const citedViolationRules = violationsB.filter(v => v.citedCandidate).length
 const data = { generatedAt: new Date().toISOString(), trials: args.trials, records, summary: { byArm, byFixtureArm, violationsInTracedArm: violationsB.length, disclosedViolations: disclosed, citedViolationRules } }
 if (args.exec) {
   const out = path.join(here, 'results', `${new Date().toISOString().replace(/[:.]/g, '-')}.json`)

@@ -10,6 +10,7 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(here, '..')
 const fixturesRoot = path.join(repoRoot, 'evals', 'compliance', 'fixtures')
 const runner = path.join(repoRoot, 'evals', 'compliance', 'run.mjs')
+const migrationRunner = path.join(repoRoot, 'evals', 'run.mjs')
 
 function tmp() { return fs.mkdtempSync(path.join(os.tmpdir(), 'rt-compliance-')) }
 
@@ -70,4 +71,13 @@ test('layering check catches all common db client import forms', async () => {
     fs.writeFileSync(path.join(dir, 'src', 'components', 'User.js'), source)
     assert.equal(check.check(dir), false, source)
   }
+})
+
+
+test('migration eval plan displays target cwd for codex', () => {
+  const workspace = tmp()
+  const res = spawnSync(process.execPath, [migrationRunner, '--fixtures', 'single-claude-md', '--agent', 'codex', '--workspace', workspace], { encoding: 'utf8' })
+  assert.equal(res.status, 0, res.stderr)
+  assert.match(res.stdout, /cwd: .*single-claude-md/)
+  assert.doesNotMatch(res.stdout, /cwd: \/workspace\/rule-trace\)/)
 })

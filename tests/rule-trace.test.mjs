@@ -445,7 +445,7 @@ test('cli.mjs loads and its help lists every subcommand', () => {
   )
   const { status, out } = runScript(CLI, ['--help'])
   assert.equal(status, 0, out)
-  for (const cmd of ['validate', 'parse', 'report', 'catalog', 'scaffold', 'sync']) {
+  for (const cmd of ['validate', 'collect', 'report', 'catalog', 'scaffold', 'sync']) {
     assert.match(out, new RegExp(`\\b${cmd}\\b`), `help should list ${cmd}`)
   }
 })
@@ -1081,11 +1081,6 @@ test('validator and sync refuse to clobber existing generated files without mark
 
 test('CLI exposes collect and keeps parse alias', () => {
   const cli = path.join(repoRoot, 'skills/rule-trace/scripts/cli.mjs')
-  const help = spawnSync(process.execPath, [cli, '--help'], { encoding: 'utf8' })
-  assert.equal(help.status, 0)
-  assert.match(help.stdout, /collect\s+Backfill/)
-  assert.match(help.stdout, /alias: parse/)
-  assert.doesNotMatch(help.stdout, /^  parse\s+/m)
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-collect-'))
   const transcripts = path.join(dir, 'transcripts')
   fs.mkdirSync(transcripts)

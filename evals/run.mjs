@@ -110,7 +110,7 @@ function runAgent(prompt, cwd) {
     repoRoot,
   })
   const display = invocation.display.replace('<prompt>', '<migrate prompt>')
-  const displayCwd = args.agent === 'claude' ? path.relative(repoRoot, cwd) : invocation.cwd
+  const displayCwd = path.relative(repoRoot, cwd)
   const result = runAgentInvocation({ ...invocation, display }, args.exec, { displayCwd, stdio: ['ignore', 'inherit', 'inherit'] })
   if (result.error) console.log(`  ! could not run ${args.agent}: ${result.error}`)
   else if (result.status !== null && result.status !== 0) console.log(`  ! ${args.agent} exited with status ${result.status}`)

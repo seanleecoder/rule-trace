@@ -171,7 +171,10 @@ test('CLI help documents collect as the primary backfill command', () => {
   assert.match(res.stdout, /alias: parse/)
 })
 
-test('OSS hygiene docs exist', () => {
+test('OSS hygiene docs exist and link the package issue tracker', () => {
   assert.equal(fs.existsSync(path.join(repoRoot, 'CONTRIBUTING.md')), true)
   assert.equal(fs.existsSync(path.join(repoRoot, 'SECURITY.md')), true)
+  const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'))
+  const contributing = fs.readFileSync(path.join(repoRoot, 'CONTRIBUTING.md'), 'utf8')
+  assert.match(contributing, new RegExp(pkg.bugs.url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
 })

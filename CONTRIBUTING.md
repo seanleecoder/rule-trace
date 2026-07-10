@@ -28,4 +28,4 @@ Follow `RELEASING.md` for version bumps, docs generation checks, and publication
 
 ## Where to start
 
-Check the [issue tracker](https://github.com/openai/rule-trace/issues). Docs, examples, fixtures, and clearer diagnostics are especially welcome first contributions.
+Check the [issue tracker](https://github.com/seanleecoder/rule-trace/issues). Docs, examples, fixtures, and clearer diagnostics are especially welcome first contributions.
