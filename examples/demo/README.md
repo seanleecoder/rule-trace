@@ -3,7 +3,7 @@
 This is a committed, already-migrated example project for rule-trace.
 It contains canonical rules, thin importers, seeded trace events, and generated metrics.
 Regenerate the rule catalog after editing demo rules.
-Validate the demo with:
+Validate the demo with (run from the repository root):
 
 ```bash
 node skills/rule-trace/scripts/validate-rules.mjs --root examples/demo

@@ -28,6 +28,9 @@ export const DEFAULT_CONFIG = {
   // them is the failure this guards against.
   importers: [
     { path: 'CLAUDE.md', type: 'at-import' },
+    // AGENTS.md as at-import is a parity check, not a loading guarantee: Codex
+    // CLI's AGENTS.md has no documented @-import expansion (see the support
+    // matrix in skills/rule-trace/references/importer-wiring.md).
     { path: 'AGENTS.md', type: 'at-import' },
     { path: '.opencode/opencode.json', type: 'opencode-instructions' },
   ],

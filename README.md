@@ -111,7 +111,7 @@ Core pieces:
 
 Optional adoption support:
 
-- **Thin importers** so each agent tool can load the same canonical files instead of divergent prose.
+- **Thin importers** for tools that support file references, plus documented/generated native formats for the tools that don't — see the importer support matrix for which is which.
 - **A dashboard** that flags dead rules, always-candidate-never-applied rules, low application rate, un-waived `MUST` gaps, and unknown IDs.
 - **CI snippets** for GitHub Actions and GitLab.
 - **A Claude Code Stop hook** for live usage collection.

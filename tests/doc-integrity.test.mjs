@@ -6,6 +6,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -94,6 +95,49 @@ test('committed demo validates cleanly', () => {
   )
   assert.equal(res.status, 0, `demo validation failed:\n${res.stdout}\n${res.stderr}`)
   assert.doesNotMatch(res.stdout, /⚠/, 'demo validation should have no warnings')
+})
+
+test('this repo\'s own dogfooded rules validate cleanly', () => {
+  const res = spawnSync(
+    process.execPath,
+    [path.join(scriptsDir, 'validate-rules.mjs'), '--root', repoRoot],
+    { encoding: 'utf8' },
+  )
+  assert.equal(res.status, 0, `root validation failed:\n${res.stdout}\n${res.stderr}`)
+  assert.doesNotMatch(res.stdout, /⚠/, 'root validation should have no warnings')
+})
+
+test('committed demo report.json and dashboard.html match a fresh regeneration', () => {
+  const demoRoot = path.join(repoRoot, 'examples', 'demo')
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-demo-regen-'))
+  const outJson = path.join(tmpDir, 'report.json')
+  const outHtml = path.join(tmpDir, 'dashboard.html')
+  const res = spawnSync(
+    process.execPath,
+    [
+      path.join(scriptsDir, 'report.mjs'),
+      '--root', demoRoot,
+      '--out-json', outJson,
+      '--out-html', outHtml,
+    ],
+    { encoding: 'utf8' },
+  )
+  assert.equal(res.status, 0, `demo report regeneration failed:\n${res.stdout}\n${res.stderr}`)
+
+  const committedJson = JSON.parse(
+    fs.readFileSync(path.join(demoRoot, '.agents', 'metrics', 'report.json'), 'utf8'),
+  )
+  const freshJson = JSON.parse(fs.readFileSync(outJson, 'utf8'))
+  delete committedJson.generatedAt
+  delete freshJson.generatedAt
+  assert.deepEqual(freshJson, committedJson, 'demo report.json drifted from a fresh regeneration')
+
+  const stripGenerated = html => html.replace(/<p class="sub">Generated [^<]*<\/p>/, '<p class="sub">Generated STAMP</p>')
+  const committedHtml = stripGenerated(
+    fs.readFileSync(path.join(demoRoot, '.agents', 'metrics', 'dashboard.html'), 'utf8'),
+  )
+  const freshHtml = stripGenerated(fs.readFileSync(outHtml, 'utf8'))
+  assert.equal(freshHtml, committedHtml, 'demo dashboard.html drifted from a fresh regeneration')
 })
 
 test('README embeds the dashboard screenshot', () => {
