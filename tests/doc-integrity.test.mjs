@@ -15,6 +15,10 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(here, '..')
 const skillDir = path.join(repoRoot, 'skills', 'rule-trace')
 const scriptsDir = path.join(skillDir, 'scripts')
+// The pinned report-time "now" the committed examples/demo artifacts were
+// generated with. Chosen so exactly one seeded rule (DEMO-ROOT-004) is stale at
+// the default --stale-days; regenerate the demo with the same --now value.
+const DEMO_NOW = '2026-07-10T00:00:00Z'
 
 function walk(dir, pred) {
   const out = []
@@ -119,25 +123,38 @@ test('committed demo report.json and dashboard.html match a fresh regeneration',
       '--root', demoRoot,
       '--out-json', outJson,
       '--out-html', outHtml,
+      // Pinned so staleness (and generatedAt) never drift with wall-clock time;
+      // must match the --now the committed demo artifacts were generated with
+      // (see examples/demo/README.md).
+      '--now', DEMO_NOW,
     ],
     { encoding: 'utf8' },
   )
   assert.equal(res.status, 0, `demo report regeneration failed:\n${res.stdout}\n${res.stderr}`)
 
-  const committedJson = JSON.parse(
+  assert.equal(
+    fs.readFileSync(outJson, 'utf8'),
     fs.readFileSync(path.join(demoRoot, '.agents', 'metrics', 'report.json'), 'utf8'),
+    'demo report.json drifted from a fresh regeneration',
   )
-  const freshJson = JSON.parse(fs.readFileSync(outJson, 'utf8'))
-  delete committedJson.generatedAt
-  delete freshJson.generatedAt
-  assert.deepEqual(freshJson, committedJson, 'demo report.json drifted from a fresh regeneration')
-
-  const stripGenerated = html => html.replace(/<p class="sub">Generated [^<]*<\/p>/, '<p class="sub">Generated STAMP</p>')
-  const committedHtml = stripGenerated(
+  assert.equal(
+    fs.readFileSync(outHtml, 'utf8'),
     fs.readFileSync(path.join(demoRoot, '.agents', 'metrics', 'dashboard.html'), 'utf8'),
+    'demo dashboard.html drifted from a fresh regeneration',
   )
-  const freshHtml = stripGenerated(fs.readFileSync(outHtml, 'utf8'))
-  assert.equal(freshHtml, committedHtml, 'demo dashboard.html drifted from a fresh regeneration')
+})
+
+// The demo README documents the same --now value in prose (for anyone
+// regenerating by hand); catch drift between that literal and DEMO_NOW so the
+// two can never silently disagree.
+test('demo README --now literal matches the DEMO_NOW test constant', () => {
+  const demoReadme = fs.readFileSync(
+    path.join(repoRoot, 'examples', 'demo', 'README.md'),
+    'utf8',
+  )
+  const m = demoReadme.match(/--now\s+(\S+)/)
+  assert.ok(m, 'demo README should document a --now value')
+  assert.equal(m[1], DEMO_NOW, 'demo README --now literal drifted from DEMO_NOW')
 })
 
 test('README embeds the dashboard screenshot', () => {
@@ -169,6 +186,12 @@ test('CLI help documents collect as the primary backfill command', () => {
   assert.equal(res.status, 0)
   assert.match(res.stdout, /collect\s+Backfill/)
   assert.match(res.stdout, /alias: parse/)
+})
+
+test('CLI help documents the report --now flag', () => {
+  const res = spawnSync(process.execPath, [path.join(scriptsDir, 'cli.mjs'), '--help'], { encoding: 'utf8' })
+  assert.equal(res.status, 0)
+  assert.match(res.stdout, /--now <ISO-8601 date>/)
 })
 
 test('OSS hygiene docs exist and link the package issue tracker', () => {

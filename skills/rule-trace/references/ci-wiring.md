@@ -65,7 +65,7 @@ npx rule-trace@1 validate
 
 ## 3. Live usage counter (Claude Code)
 
-If installed as a **plugin**, the `Stop` hook ships in `hooks/hooks.json` and is wired automatically. If installed via **skills.sh / standalone**, add it to `.claude/settings.json` — see [`importer-wiring.md`](importer-wiring.md) for the exact snippet. The live hook is what feeds trace coverage by recording traced and untraced finished responses. Either way, counts land in `.agents/metrics/traces.jsonl`; run `<skill>/scripts/report.mjs` to build `report.json` + `dashboard.html`.
+If installed as a **plugin**, the `Stop` hook ships in `hooks/hooks.json` and is wired automatically. If installed via **skills.sh / standalone**, add it to `.claude/settings.json` — see [`importer-wiring.md`](importer-wiring.md) for the exact snippet. The live hook is what feeds trace coverage by recording traced and untraced finished responses. Either way, counts land in `.agents/metrics/traces.jsonl`; run `<skill>/scripts/report.mjs` to build `report.json` + `dashboard.html`. For a reproducible report (e.g. in a CI artifact you diff run-to-run), pass `--now <ISO-8601 date>` so staleness and `generatedAt` don't drift with the run's wall-clock time.
 
 ## 4. Counting for other agents (OpenCode, Codex, …)
 

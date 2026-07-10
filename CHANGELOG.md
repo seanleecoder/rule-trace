@@ -8,6 +8,7 @@ All notable changes to this project are documented here. This project follows [K
 - Live trace coverage metrics, read-side event deduplication, report staleness detection, and release-readiness documentation.
 - Structured fenced `rule-trace` JSON parsing with prose fallback for trace blocks.
 - Generated importer support and the `sync` command for reference-blind tools such as Cursor and GitHub Copilot.
+- `report.mjs --now <ISO-8601 date>` pins report time (staleness and `generatedAt`) for reproducible runs; the committed demo artifacts and their regeneration test use it so staleness no longer drifts with the wall clock.
 
 ## [1.2.0] - 2026-06-29
 
