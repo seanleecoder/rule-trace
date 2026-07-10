@@ -25,7 +25,7 @@ test('compliance checks distinguish compliant and violating trees', async () => 
       fs.mkdirSync(path.join(bad, 'docs'), { recursive: true }); fs.writeFileSync(path.join(bad, 'package-lock.json'), '{}'); fs.writeFileSync(path.join(bad, 'docs', 'scripts.md'), 'test')
     } else if (fixture === 'layering') {
       fs.mkdirSync(path.join(good, 'src', 'components'), { recursive: true }); fs.writeFileSync(path.join(good, 'src', 'components', 'User.js'), 'import x from "../repositories/users"')
-      fs.mkdirSync(path.join(bad, 'src', 'components'), { recursive: true }); fs.writeFileSync(path.join(bad, 'src', 'components', 'User.js'), 'import x from "../db/client"')
+      fs.mkdirSync(path.join(bad, 'src', 'components'), { recursive: true }); fs.writeFileSync(path.join(bad, 'src', 'components', 'User.js'), 'const db = require("../db/client")')
     } else if (fixture === 'tests-required') {
       fs.mkdirSync(path.join(good, 'src'), { recursive: true }); fs.mkdirSync(path.join(good, 'tests'), { recursive: true }); fs.writeFileSync(path.join(good, 'src', 'math.js'), ''); fs.writeFileSync(path.join(good, 'tests', 'math.test.js'), 'math')
       fs.mkdirSync(path.join(bad, 'src'), { recursive: true }); fs.writeFileSync(path.join(bad, 'src', 'math.js'), '')
@@ -46,8 +46,28 @@ test('compliance runner plans all arms and keeps task prompts identical', () => 
   assert.equal(res.status, 0, res.stderr)
   assert.match(res.stdout, /deps-and-scripts · prose · 1/)
   assert.match(res.stdout, /ids-only\s+planned/)
+  assert.match(res.stdout, /=== compliance by fixture ===/)
+  assert.match(res.stdout, /tests-required\s+traced\s+planned/)
   for (const fixture of fs.readdirSync(fixturesRoot).filter(f => fs.existsSync(path.join(fixturesRoot, f, 'task.txt')))) {
     const tasks = ['prose', 'traced', 'ids-only'].map(arm => fs.readFileSync(path.join(workspace, fixture, arm, '1', 'TASK.txt'), 'utf8'))
     assert.equal(new Set(tasks).size, 1, `${fixture} task prompt differs by arm`)
+  }
+})
+
+
+test('layering check catches all common db client import forms', async () => {
+  const checks = (await import(path.join(fixturesRoot, 'layering', 'checks.mjs'))).default
+  const check = checks.find(c => c.ruleId === 'LAYER-001')
+  const importForms = [
+    'import db from "../db/client"',
+    'import "../db/client"',
+    'const db = require("../db/client")',
+    'const db = await import("../db/client")',
+  ]
+  for (const source of importForms) {
+    const dir = tmp()
+    fs.mkdirSync(path.join(dir, 'src', 'components'), { recursive: true })
+    fs.writeFileSync(path.join(dir, 'src', 'components', 'User.js'), source)
+    assert.equal(check.check(dir), false, source)
   }
 })

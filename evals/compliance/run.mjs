@@ -68,14 +68,26 @@ for (const fixture of fixtures) {
     }
   }
 }
-const byArm = arms.map(arm => {
-  const checks = records.filter(r => r.arm === arm).flatMap(r => r.checks)
-  const passed = checks.filter(c => c.pass).length
-  return { arm, passed, total: checks.length, rate: checks.length ? passed / checks.length : 0 }
-})
+function summarize(rows, keys) {
+  const groups = new Map()
+  for (const record of rows) {
+    const key = keys.map(k => record[k]).join('\0')
+    if (!groups.has(key)) groups.set(key, { ...Object.fromEntries(keys.map(k => [k, record[k]])), passed: 0, total: 0, rate: 0 })
+    const group = groups.get(key)
+    for (const check of record.checks) {
+      group.total++
+      if (check.pass) group.passed++
+    }
+  }
+  return [...groups.values()].map(row => ({ ...row, rate: row.total ? row.passed / row.total : 0 }))
+}
+
+const byArm = arms.map(arm => summarize(records.filter(r => r.arm === arm), ['arm'])[0] || { arm, passed: 0, total: 0, rate: 0 })
+const byFixtureArm = summarize(records, ['fixture', 'arm']).sort((a, b) => a.fixture.localeCompare(b.fixture) || a.arm.localeCompare(b.arm))
 const violationsB = records.filter(r => r.arm === 'traced').flatMap(r => r.checks.filter(c => !c.pass).map(c => ({ record: r, check: c })))
 const disclosed = violationsB.filter(v => v.record.traceDeviations.includes(v.check.ruleId)).length
-const data = { generatedAt: new Date().toISOString(), trials: args.trials, records, summary: { byArm, violationsInTracedArm: violationsB.length, disclosedViolations: disclosed } }
+const citedViolationRules = violationsB.filter(v => v.record.traceCandidate.includes(v.check.ruleId)).length
+const data = { generatedAt: new Date().toISOString(), trials: args.trials, records, summary: { byArm, byFixtureArm, violationsInTracedArm: violationsB.length, disclosedViolations: disclosed, citedViolationRules } }
 if (args.exec) {
   const out = path.join(here, 'results', `${new Date().toISOString().replace(/[:.]/g, '-')}.json`)
   fs.mkdirSync(path.dirname(out), { recursive: true })
@@ -84,4 +96,6 @@ if (args.exec) {
 }
 console.log('\n=== compliance by arm ===')
 for (const row of byArm) console.log(`${row.arm.padEnd(9)} ${row.total ? Math.round(row.rate * 100) + '%' : 'planned'} (${row.passed}/${row.total})`)
+console.log('\n=== compliance by fixture ===')
+for (const row of byFixtureArm) console.log(`${row.fixture.padEnd(16)} ${row.arm.padEnd(9)} ${row.total ? Math.round(row.rate * 100) + '%' : 'planned'} (${row.passed}/${row.total})`)
 if (args.report) fs.writeFileSync(args.report, renderComplianceReport(data))

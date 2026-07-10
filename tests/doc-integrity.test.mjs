@@ -162,3 +162,16 @@ test('trace labels and fenced tag stay in lockstep across parser, docs, template
     }
   }
 })
+
+
+test('CLI help documents collect as the primary backfill command', () => {
+  const res = spawnSync(process.execPath, [path.join(scriptsDir, 'cli.mjs'), '--help'], { encoding: 'utf8' })
+  assert.equal(res.status, 0)
+  assert.match(res.stdout, /collect\s+Backfill/)
+  assert.match(res.stdout, /alias: parse/)
+})
+
+test('OSS hygiene docs exist', () => {
+  assert.equal(fs.existsSync(path.join(repoRoot, 'CONTRIBUTING.md')), true)
+  assert.equal(fs.existsSync(path.join(repoRoot, 'SECURITY.md')), true)
+})

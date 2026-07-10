@@ -23,13 +23,14 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
+import { AGENTS, agentInvocation as buildAgentInvocation, runAgent as runAgentInvocation, setupFixture } from './lib.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(here, '..')
 const SKILL = path.join(repoRoot, 'skills/rule-trace/SKILL.md')
 const VALIDATOR = path.join(repoRoot, 'skills/rule-trace/scripts/validate-rules.mjs')
 const GRADE = path.join(here, 'grade.mjs')
-const AGENTS = new Set(['claude', 'codex'])
+const fixturesRoot = path.join(here, 'fixtures')
 
 function parseArgs(argv) {
   const a = {
@@ -95,59 +96,24 @@ function baselinePrompt(dir) {
   ].join(' ')
 }
 
-// Copy a fixture into the workspace (oss = just its rule files; others = whole dir).
 function setup(fixture, armDir) {
-  fs.rmSync(armDir, { recursive: true, force: true })
-  fs.mkdirSync(armDir, { recursive: true })
-  const src = path.join(here, 'fixtures', fixture)
-  if (fixture === 'oss') {
-    if (!fs.existsSync(src)) throw new Error(`oss fixture missing — run: node evals/fetch-oss.mjs --repo <owner/project>`)
-    for (const m of ['CLAUDE.md', 'AGENTS.md', '.cursorrules']) {
-      if (fs.existsSync(path.join(src, m))) fs.copyFileSync(path.join(src, m), path.join(armDir, m))
-    }
-  } else {
-    fs.cpSync(src, armDir, { recursive: true })
-  }
-}
-
-function agentInvocation(prompt, cwd) {
-  if (args.agent === 'claude') {
-    return {
-      bin: 'claude',
-      cmd: ['-p', prompt, '--permission-mode', 'bypassPermissions', ...(args.model ? ['--model', args.model] : [])],
-      display: `claude -p "<migrate prompt>" --permission-mode bypassPermissions${args.model ? ` --model ${args.model}` : ''}`,
-      cwd,
-    }
-  }
-  return {
-    bin: 'codex',
-    cmd: [
-      '--cd',
-      cwd,
-      '--sandbox',
-      args.codexSandbox,
-      '--ask-for-approval',
-      'never',
-      ...(args.model ? ['--model', args.model] : []),
-      'exec',
-      '--skip-git-repo-check',
-      '--ephemeral',
-      '--color',
-      'never',
-      prompt,
-    ],
-    display: `codex --cd ${cwd} --sandbox ${args.codexSandbox} --ask-for-approval never${args.model ? ` --model ${args.model}` : ''} exec --skip-git-repo-check --ephemeral "<migrate prompt>"`,
-    cwd: repoRoot,
-  }
+  setupFixture({ fixturesRoot, fixture, dest: armDir })
 }
 
 function runAgent(prompt, cwd) {
-  const invocation = agentInvocation(prompt, cwd)
-  console.log(`  $ ${invocation.display}  (cwd: ${path.relative(repoRoot, cwd)})`)
-  if (!args.exec) return
-  const res = spawnSync(invocation.bin, invocation.cmd, { cwd: invocation.cwd, stdio: ['ignore', 'inherit', 'inherit'] })
-  if (res.error) console.log(`  ! could not run ${args.agent}: ${res.error.message}`)
-  else if (res.status !== 0) console.log(`  ! ${args.agent} exited with status ${res.status}`)
+  const invocation = buildAgentInvocation({
+    agent: args.agent,
+    prompt,
+    cwd,
+    model: args.model,
+    codexSandbox: args.codexSandbox,
+    repoRoot,
+  })
+  const display = invocation.display.replace('<prompt>', '<migrate prompt>')
+  const displayCwd = args.agent === 'claude' ? path.relative(repoRoot, cwd) : invocation.cwd
+  const result = runAgentInvocation({ ...invocation, display }, args.exec, { displayCwd, stdio: ['ignore', 'inherit', 'inherit'] })
+  if (result.error) console.log(`  ! could not run ${args.agent}: ${result.error}`)
+  else if (result.status !== null && result.status !== 0) console.log(`  ! ${args.agent} exited with status ${result.status}`)
 }
 
 function grade(dir) {

@@ -249,7 +249,7 @@ A trace block is roughly 50–100 tokens on substantive responses. Rule files us
 - Malformed OpenCode config when `.opencode/opencode.json` is present.
 - Trace blocks that cite IDs missing from the catalog when using `--lint-file <path>`.
 
-It warns, but does not fail, when configured importers are absent or numbered IDs have gaps. If a repo intentionally uses only one agent tool, set `importers` in `.agents/rule-trace.config.json` to just that entry so validation stays quiet.
+It warns, but does not fail, when configured importers are absent or numbered IDs have gaps. If a gap is intentional because a rule was retired, add that ID to `retiredIds` in `.agents/rule-trace.config.json` so validation treats the gap as documented retirement rather than drift. If a repo intentionally uses only one agent tool, set `importers` in `.agents/rule-trace.config.json` to just that entry so validation stays quiet.
 
 Example package script:
 

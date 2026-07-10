@@ -283,6 +283,17 @@ test('trace-lint flags an unknown cited ID in a second trace block', () => {
   assert.match(out, /ROOT-999/)
 })
 
+
+test('trace-lint treats retired IDs as unknown citations', () => {
+  const dir = writeFixture()
+  fs.writeFileSync(path.join(dir, '.agents', 'rule-trace.config.json'), JSON.stringify({ retiredIds: ['ROOT-003'] }))
+  const traceFile = path.join(dir, 'response.md')
+  fs.writeFileSync(traceFile, 'Rule trace\n\n- Candidate rules loaded: [`ROOT-003`](x)\n')
+  const { status, out } = runValidator(dir, ['--lint-file', traceFile])
+  assert.equal(status, 1)
+  assert.match(out, /ROOT-003/)
+})
+
 // --- plugin + marketplace manifest sanity ---
 test('plugin.json and marketplace.json carry required fields and point at a real skill', () => {
   const plugin = JSON.parse(
