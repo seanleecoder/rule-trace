@@ -62,7 +62,7 @@ The live counter is a `Stop` hook. How it gets wired depends on how the skill wa
 - **Installed as a Claude Code plugin** (`/plugin install`): the hook ships in the plugin's `hooks/hooks.json` (command `node "${CLAUDE_PLUGIN_ROOT}/skills/rule-trace/scripts/record-trace.mjs"`) and is wired automatically — nothing to do.
 - **Installed via skills.sh or standalone** (the skill folder lives at `.agents/skills/` with a `.claude/skills/` symlink, but no plugin): add the hook by hand to `.claude/settings.json` (project) or `~/.claude/settings.json` (user), as below.
 
-Other agents (OpenCode, Codex) have no equivalent Stop hook; collect their counts with the offline parser instead (`parse-traces.mjs --transcripts <their transcript dir>`).
+Other agents (OpenCode, Codex) have no equivalent Stop hook; collect their counts with the offline collector instead (`parse-traces.mjs --transcripts <their transcript dir>`).
 
 > **Pick one — never both.** These are alternatives. If the plugin is enabled and you also add the manual hook below, the recorder fires twice per response: the plugin command resolves to `${CLAUDE_PLUGIN_ROOT}/skills/rule-trace/scripts/record-trace.mjs` and the manual one to `$CLAUDE_PROJECT_DIR/.agents/skills/rule-trace/scripts/record-trace.mjs`, so Claude Code's identical-command dedup never triggers. No error surfaces — `record-trace.mjs` dedupes events by message UUID, so the second run just appends nothing — but you spawn a redundant Node process every turn. Add the manual hook only on a standalone install with no plugin; `validate-rules.mjs` and `scaffold-wiring.mjs` warn if they detect both.
 
@@ -87,4 +87,4 @@ Manual entry for a skills.sh / standalone install:
 
 The hook reads the Stop payload from stdin, finds the last main-agent assistant message, and appends its trace block to `<metricsDir>/traces.jsonl`. It ignores `SubagentStop`, dedupes by message UUID, and always exits 0 — it can never block or fail the agent. If the repo installs the skill via the `.claude/skills/<name>` symlink, the `command` path stays the same because it points at the real `.agents/skills/...` location.
 
-This is the only tool-specific piece. The convention, catalog, validator, and offline parser are tool-agnostic.
+This is the only tool-specific piece. The convention, catalog, validator, and offline collector are tool-agnostic.

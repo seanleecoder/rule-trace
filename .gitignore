@@ -9,3 +9,4 @@ rule-trace-workspace/
 .agents/metrics/traces.jsonl
 .agents/metrics/report.json
 .agents/metrics/dashboard.html
+evals/compliance/results/

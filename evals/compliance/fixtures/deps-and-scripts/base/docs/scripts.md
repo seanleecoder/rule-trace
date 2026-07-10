@@ -1,0 +1,3 @@
+# Scripts
+
+test: run tests

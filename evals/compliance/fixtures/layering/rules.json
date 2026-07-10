@@ -1,0 +1,1 @@
+[{"id":"LAYER-001","text":"Components must not import the db client directly; go through src/repositories/."}]

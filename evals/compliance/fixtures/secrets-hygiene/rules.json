@@ -1,0 +1,1 @@
+[{"id":"SEC-001","text":"Never read process.env outside src/config.js."}]

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-09T21:04:15.246Z",
+  "generatedAt": "2026-07-10T11:43:02.909Z",
   "totalTraces": 31,
   "totalEvents": 42,
   "duplicateEventsIgnored": 0,
@@ -139,6 +139,7 @@
         "id": "DEMO-OLD-999",
         "count": 2
       }
-    ]
+    ],
+    "retired": []
   }
 }

@@ -26,6 +26,7 @@ export const DEFAULT_CONFIG = {
   severities: ['MUST', 'SHOULD', 'MAY'],
   // Every importer must reference the identical set of rule files; drift between
   // them is the failure this guards against.
+  retiredIds: [],
   importers: [
     { path: 'CLAUDE.md', type: 'at-import' },
     // AGENTS.md as at-import is a parity check, not a loading guarantee: Codex
@@ -38,10 +39,41 @@ export const DEFAULT_CONFIG = {
 
 export function loadConfig(root) {
   const configPath = path.join(root, '.agents', 'rule-trace.config.json')
-  if (!fs.existsSync(configPath)) return { ...DEFAULT_CONFIG }
+  const warnGlobLimits = config => {
+    for (const glob of config.packageRuleGlobs || []) {
+      if (glob.includes('**')) {
+        console.error(`Config warning: packageRuleGlobs contains unsupported recursive glob "${glob}"; list each directory level explicitly instead of using **.`)
+      }
+    }
+  }
+  if (!fs.existsSync(configPath)) {
+    const config = { ...DEFAULT_CONFIG }
+    warnGlobLimits(config)
+    return config
+  }
   try {
     const parsed = JSON.parse(fs.readFileSync(configPath, 'utf8'))
-    return { ...DEFAULT_CONFIG, ...parsed }
+    const known = new Set(Object.keys(DEFAULT_CONFIG))
+    for (const key of Object.keys(parsed)) {
+      if (!known.has(key)) {
+        const lower = key.toLowerCase()
+        const compact = value => value.toLowerCase().replace(/s/g, '')
+        const closest = [...known].find(k => k.toLowerCase() === lower) ||
+          [...known].find(k => compact(k) === compact(key)) ||
+          [...known].find(k => compact(k).includes(compact(key)) || compact(key).includes(compact(k)))
+        console.error(`Config warning: unknown key "${key}"${closest ? `; did you mean "${closest}"?` : ''}`)
+      }
+    }
+    const config = { ...DEFAULT_CONFIG, ...parsed }
+    const arrayKeys = ['packageRuleGlobs', 'severities', 'importers', 'retiredIds']
+    for (const key of arrayKeys) {
+      if (!Array.isArray(config[key])) throw new Error(`${key} must be an array`)
+    }
+    for (const key of ['rulesDir', 'catalogPath', 'metricsDir']) {
+      if (typeof config[key] !== 'string') throw new Error(`${key} must be a string`)
+    }
+    warnGlobLimits(config)
+    return config
   } catch (err) {
     throw new Error(`Could not parse ${configPath}: ${err.message}`)
   }

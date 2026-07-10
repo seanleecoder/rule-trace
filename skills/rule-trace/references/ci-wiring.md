@@ -76,4 +76,4 @@ node .agents/skills/rule-trace/scripts/parse-traces.mjs --transcripts <that agen
 node .agents/skills/rule-trace/scripts/report.mjs
 ```
 
-`parse-traces.mjs` dedupes by message UUID, so it's safe to re-run and to combine with the live hook.
+The collection script dedupes by message UUID, so it's safe to re-run and to combine with the live hook.

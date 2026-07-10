@@ -1067,3 +1067,97 @@ test('validator and sync refuse to clobber existing generated files without mark
   assert.doesNotMatch(res.out, /generated importers are stale/)
   assert.equal(fs.readFileSync(generated, 'utf8'), 'user content without generated markers\n')
 })
+
+test('CLI exposes collect and keeps parse alias', () => {
+  const cli = path.join(repoRoot, 'skills/rule-trace/scripts/cli.mjs')
+  const help = spawnSync(process.execPath, [cli, '--help'], { encoding: 'utf8' })
+  assert.equal(help.status, 0)
+  assert.match(help.stdout, /collect\s+Backfill/)
+  assert.match(help.stdout, /alias: parse/)
+  assert.doesNotMatch(help.stdout, /^  parse\s+/m)
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-collect-'))
+  const transcripts = path.join(dir, 'transcripts')
+  fs.mkdirSync(transcripts)
+  const collect = spawnSync(process.execPath, [cli, 'collect', '--root', dir, '--transcripts', transcripts], { encoding: 'utf8' })
+  const parse = spawnSync(process.execPath, [cli, 'parse', '--root', dir, '--transcripts', transcripts], { encoding: 'utf8' })
+  assert.equal(collect.status, 0)
+  assert.equal(parse.status, 0)
+})
+
+function writeGapFixture(retired = []) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-gap-'))
+  fs.mkdirSync(path.join(dir, '.agents', 'rules'), { recursive: true })
+  fs.writeFileSync(path.join(dir, '.agents', 'rules', 'root.md'), [
+    '## ROOT-001', '- Scope: repo', '- Applies when: always', '- Severity: MUST', '- Rule: one', '',
+    '## ROOT-003', '- Scope: repo', '- Applies when: always', '- Severity: MUST', '- Rule: three', '',
+  ].join('\n'))
+  fs.writeFileSync(path.join(dir, '.agents', 'rules-catalog.md'), [
+    '| Rule ID | Layer | Scope | Severity | Source | Summary |', '| --- | --- | --- | --- | --- | --- |',
+    '| `ROOT-001` | Root | repo | MUST | `.agents/rules/root.md` | one |',
+    '| `ROOT-003` | Root | repo | MUST | `.agents/rules/root.md` | three |', '',
+  ].join('\n'))
+  fs.writeFileSync(path.join(dir, 'CLAUDE.md'), '@.agents/rules/root.md\n')
+  fs.writeFileSync(path.join(dir, 'AGENTS.md'), '@.agents/rules/root.md\n')
+  fs.mkdirSync(path.join(dir, '.agents'), { recursive: true })
+  if (retired.length) fs.writeFileSync(path.join(dir, '.agents', 'rule-trace.config.json'), JSON.stringify({ retiredIds: retired }))
+  return dir
+}
+
+test('retiredIds fill numbering gaps but cannot remain defined', () => {
+  const noRetired = runValidator(writeGapFixture())
+  assert.equal(noRetired.status, 0)
+  assert.match(noRetired.out, /Numbering gap in ROOT-\*: 1 → 3/)
+  const retired = runValidator(writeGapFixture(['ROOT-002']))
+  assert.equal(retired.status, 0)
+  assert.doesNotMatch(retired.out, /Numbering gap/)
+  const stillDefined = writeGapFixture(['ROOT-002'])
+  fs.appendFileSync(path.join(stillDefined, '.agents', 'rules', 'root.md'), '\n## ROOT-002\n- Scope: repo\n- Applies when: always\n- Severity: MUST\n- Rule: retired but live\n')
+  const bad = runValidator(stillDefined)
+  assert.equal(bad.status, 1)
+  assert.match(bad.out, /ROOT-002 is in retiredIds but still defined/)
+})
+
+test('report treats retired IDs as retired rather than unknown', () => {
+  const dir = writeGapFixture(['ROOT-002'])
+  fs.mkdirSync(path.join(dir, '.agents', 'metrics'), { recursive: true })
+  fs.writeFileSync(path.join(dir, '.agents', 'metrics', 'traces.jsonl'), JSON.stringify({ uuid: '1', traced: true, candidate: ['ROOT-001', 'ROOT-002'], applied: ['ROOT-002'], deviations: [] }) + '\n')
+  const outJson = path.join(dir, 'report.json')
+  const res = spawnSync(process.execPath, [path.join(repoRoot, 'skills/rule-trace/scripts/report.mjs'), '--root', dir, '--out-json', outJson, '--out-html', path.join(dir, 'report.html')], { encoding: 'utf8' })
+  assert.equal(res.status, 0, res.stderr)
+  const data = JSON.parse(fs.readFileSync(outJson, 'utf8'))
+  assert.deepEqual(data.flags.unknownIds, [])
+  assert.deepEqual(data.flags.retired, [{ id: 'ROOT-002', candidate: 1, applied: 1 }])
+})
+
+test('config warns on unknown key and fails on wrong known-key type', () => {
+  const typo = writeFixture()
+  fs.writeFileSync(path.join(typo, '.agents', 'rule-trace.config.json'), JSON.stringify({ ruleDirs: '.agents/rules' }))
+  const typoRes = runValidator(typo)
+  assert.equal(typoRes.status, 0)
+  assert.match(typoRes.out, /unknown key "ruleDirs"; did you mean "rulesDir"/)
+  const wrong = writeFixture()
+  fs.writeFileSync(path.join(wrong, '.agents', 'rule-trace.config.json'), JSON.stringify({ importers: 'CLAUDE.md' }))
+  const wrongRes = runValidator(wrong)
+  assert.equal(wrongRes.status, 1)
+  assert.match(wrongRes.out, /importers must be an array/)
+})
+
+test('config warns when packageRuleGlobs uses unsupported recursive glob', () => {
+  const dir = writeFixture()
+  fs.writeFileSync(path.join(dir, '.agents', 'rule-trace.config.json'), JSON.stringify({ packageRuleGlobs: ['packages/**/rules/*.md'] }))
+  const res = runValidator(dir)
+  assert.equal(res.status, 0)
+  assert.match(res.out, /unsupported recursive glob/)
+  assert.match(res.out, /packages\/\*\*\/rules\/\*\.md/)
+})
+
+test('empty derived transcript directory prints explicit hint', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-empty-transcripts-root-'))
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-home-'))
+  const encoded = dir.replace(/[^a-zA-Z0-9]/g, '-')
+  fs.mkdirSync(path.join(home, '.claude', 'projects', encoded), { recursive: true })
+  const res = spawnSync(process.execPath, [path.join(repoRoot, 'skills/rule-trace/scripts/parse-traces.mjs'), '--root', dir], { encoding: 'utf8', env: { ...HERMETIC_ENV, HOME: home } })
+  assert.equal(res.status, 0)
+  assert.match(res.stderr, /No \.jsonl transcripts found in derived transcript directory/)
+  assert.match(res.stderr, /--transcripts <dir>/)
+})
