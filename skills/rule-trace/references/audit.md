@@ -7,7 +7,7 @@ How to maintain a traceable rule set over time — combining repo state, usage d
 - **Rule files** — the `## ID` headings under the rules dir (+ package-local rule files).
 - **Importer entry points** — the per-tool files that load the rules (e.g. CLAUDE.md, AGENTS.md, an OpenCode config); checked for alignment.
 - **Optional command/skill files** — any custom commands the project keeps, if in scope.
-- **Usage report** — `report.json` from `report.mjs` (quantitative evidence). Regenerate it first if stale or missing. Counts are self-reported by the model — a prioritization signal, not proof.
+- **Usage report** — `report.json` from `report.mjs` (quantitative evidence). Regenerate it first if stale or missing. Counts are self-reported by the model — a prioritization signal, not proof. `report.mjs`'s own `flags.stale` (which rules haven't been a candidate recently) is computed against the real clock by default; pass `--now <ISO-8601 date>` only if you need a reproducible report (e.g. re-deriving a past audit's numbers).
 - **Session evidence** — the current chat: repeated corrections, recurring decisions, review comments, cases where a rule was ignored/contradicted/found incomplete.
 
 ## Parameters

@@ -144,6 +144,19 @@ test('committed demo report.json and dashboard.html match a fresh regeneration',
   )
 })
 
+// The demo README documents the same --now value in prose (for anyone
+// regenerating by hand); catch drift between that literal and DEMO_NOW so the
+// two can never silently disagree.
+test('demo README --now literal matches the DEMO_NOW test constant', () => {
+  const demoReadme = fs.readFileSync(
+    path.join(repoRoot, 'examples', 'demo', 'README.md'),
+    'utf8',
+  )
+  const m = demoReadme.match(/--now\s+(\S+)/)
+  assert.ok(m, 'demo README should document a --now value')
+  assert.equal(m[1], DEMO_NOW, 'demo README --now literal drifted from DEMO_NOW')
+})
+
 test('README embeds the dashboard screenshot', () => {
   const readme = fs.readFileSync(path.join(repoRoot, 'README.md'), 'utf8')
   assert.match(readme, /docs\/dashboard\.png/)
@@ -173,6 +186,12 @@ test('CLI help documents collect as the primary backfill command', () => {
   assert.equal(res.status, 0)
   assert.match(res.stdout, /collect\s+Backfill/)
   assert.match(res.stdout, /alias: parse/)
+})
+
+test('CLI help documents the report --now flag', () => {
+  const res = spawnSync(process.execPath, [path.join(scriptsDir, 'cli.mjs'), '--help'], { encoding: 'utf8' })
+  assert.equal(res.status, 0)
+  assert.match(res.stdout, /--now <ISO-8601 date>/)
 })
 
 test('OSS hygiene docs exist and link the package issue tracker', () => {

@@ -4,7 +4,7 @@ Phased, agent-ready specs from the design review ([`DESIGN_REVIEW.md`](../DESIGN
 
 ## Status
 
-Phases 1–4 were implemented in PRs #3–#7 and audited in `DESIGN_REVIEW_UPDATE.md` (69/69 tests green at audit time). Fully-completed spec files have been **removed** — their content lives in git history (`git log -- specs/`) and their outcomes in the audit's scorecard. What remains here is only actionable work:
+Phases 1–4 were implemented in PRs #3–#7 and audited in `DESIGN_REVIEW_UPDATE.md` (70/70 tests green at audit time). Fully-completed spec files have been **removed** — their content lives in git history (`git log -- specs/`) and their outcomes in the audit's scorecard. What remains here is only actionable work:
 
 | Spec | What remains | Who can do it |
 | --- | --- | --- |

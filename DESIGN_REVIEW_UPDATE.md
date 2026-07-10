@@ -1,8 +1,8 @@
 # rule-trace — Design Review Update (post-implementation)
 
-Follow-up to [`DESIGN_REVIEW.md`](DESIGN_REVIEW.md) after all four spec phases landed (PRs #3–#7). Method: audited every merged change against the acceptance criteria in `specs/`, ran the full suite (**69/69 pass**, up from 33), ran the validator against the repo root and `examples/demo` (both clean, zero warnings), inspected the regenerated demo report, and probed the npm registry.
+Follow-up to [`DESIGN_REVIEW.md`](DESIGN_REVIEW.md) after all four spec phases landed (PRs #3–#7). Method: audited every merged change against the acceptance criteria in `specs/`, ran the full suite (**70/70 pass**, up from 33), ran the validator against the repo root and `examples/demo` (both clean, zero warnings), inspected the regenerated demo report, and probed the npm registry.
 
-**Verdict: the implementation is substantially complete and high quality.** All ten executive-summary items are done or instrumented; the two Critical/High architectural risks from the original review (the metrics denominator and the free-text trace format) are closed in code. What remains falls into three buckets: **one urgent latent CI breakage found during this audit**, a short list of small correctness nits in the new code, and the follow-through steps that need a human or an agent-with-spend (publish, pilot, probes).
+**Verdict: the implementation is substantially complete and high quality.** All ten executive-summary items are done or instrumented; the two Critical/High architectural risks from the original review (the metrics denominator and the free-text trace format) are closed in code. This audit surfaced one urgent latent CI breakage (U1, below), which was fixed in the same PR that carries this document. What remains falls into two buckets: a short list of small correctness nits in the new code, and the follow-through steps that need a human or an agent-with-spend (publish, pilot, probes).
 
 ---
 
@@ -11,7 +11,7 @@ Follow-up to [`DESIGN_REVIEW.md`](DESIGN_REVIEW.md) after all four spec phases l
 | # | Improvement | Status | Evidence |
 |---|-------------|--------|----------|
 | 1 | Trace-emission coverage metric | ✅ **Done** | `record-trace.mjs` now records every finished response (`traced: true/false`); `report.mjs` computes `coverage {traced, untraced, rate}`, `--min-coverage` guard, dashboard tile + low-coverage banner. Untraced events correctly excluded from rule counts; legacy logs yield `rate: null`. Offline backfill correctly does *not* emit untraced events (comment explains the denominator rationale). |
-| 2 | Dashboard screenshot + committed example | ✅ **Done** | `docs/dashboard.png` embedded near the top of the README; `examples/demo/` validates cleanly and its seeded data lights up every flag class (dead 1, never-applied 1, low-rate 3, MUST gaps 2, stale 1, unknown 1, coverage 74%). Regeneration byte-match is enforced by a test — **but see finding U1 below**. |
+| 2 | Dashboard screenshot + committed example | ✅ **Done** | `docs/dashboard.png` embedded near the top of the README; `examples/demo/` validates cleanly and its seeded data lights up every flag class (dead 1, never-applied 1, low-rate 3, MUST gaps 2, stale 1, unknown 1, coverage 74%). Regeneration byte-match is enforced by a test — this audit found a latent CI-breakage risk in that test (U1, below), fixed in the same change. |
 | 3 | npm publish + tags + CHANGELOG | 🟡 **Prepared, not executed** | `CHANGELOG.md` (1.0.0→1.2.0 + populated Unreleased), `RELEASING.md` runbook, `prepublishOnly` guard, pinned `npx rule-trace@1` snippets all in place. Registry check: `rule-trace` is **available** (404 — unclaimed). The publish, retro tags, and GitHub releases are the maintainer's credentialed steps and have not happened; the docs' `npx rule-trace@1` currently resolves to nothing. |
 | 4 | AGENTS.md `@`-import assumption | 🟡 **Documented, not probed** | `importer-wiring.md` now opens with a five-tool support matrix; the Codex row honestly says "no evidence that `@path` includes are expanded; treat `@` lines as text," and the README's cross-tool claim is scoped accordingly. Evidence is docs-cited only — the spec's empirical canary probes were not run ("no live probe run" appears in three rows). The flagship claim is now honest, but still unverified. |
 | 5 | Dogfood this repo | ✅ **Done** | `.agents/` with 8 rules across 3 files, generated catalog, `CLAUDE.md`/`AGENTS.md` thin importers, scoped config, validator wired into CI, validated warning-free by a test. README links it as the live example (with an honest caveat that its own `AGENTS.md` expansion is unconfirmed for Codex). |
@@ -27,14 +27,13 @@ Beyond the top 10, the smaller spec'd items also landed and verified: retirement
 
 ## 2. New findings from this audit
 
-Reviewing the implementation surfaced one urgent item and a handful of small ones.
+Reviewing the implementation surfaced one urgent item (fixed in this same PR) and a handful of small ones.
 
-### U1. The demo regeneration test is a time bomb — CI starts failing ~2026-07-30
+### U1. The demo regeneration test was a time bomb — CI would have started failing ~2026-07-30 — FIXED
 
-- **Severity: High (urgent — deterministic future CI breakage)**
-- **What happens:** `tests/doc-integrity.test.mjs` ("committed demo report matches a fresh regeneration") deep-equals the committed `examples/demo/.agents/metrics/report.json` against a fresh run, excluding only `generatedAt`. But `flags.stale` is computed from `Date.now()` against the demo's **fixed seeded timestamps** (latest event: 2026-07-05; `--stale-days` default 30). Today exactly one rule is stale and the test passes. Around **2026-07-30**, `DEMO-TEST-002` (lastSeen 2026-06-29) crosses the threshold, the fresh report gains a second stale entry, `deepEqual` fails, and CI goes red on every branch — with the rest of the report untouched, so it will look like mysterious data drift. By early September every demo rule is stale.
-- **Recommendation (pick one; first is cleanest):** add a `--now <ISO-8601>` flag to `report.mjs` (used for staleness instead of `Date.now()`), pin it in the regen test and in the demo README's regeneration command; **or** exclude `flags.stale` from the regen comparison; **or** regenerate the demo with a huge `--stale-days`. The `--now` flag also makes report runs reproducible generally.
-- **Effort: XS–S. Do this before 2026-07-30.**
+- **Severity: High (urgent — deterministic future CI breakage). Status: fixed.**
+- **What was happening:** `tests/doc-integrity.test.mjs` ("committed demo report matches a fresh regeneration") deep-equals the committed `examples/demo/.agents/metrics/report.json` against a fresh run, excluding only `generatedAt`. But `flags.stale` was computed from `Date.now()` against the demo's **fixed seeded timestamps** (latest event: 2026-07-05; `--stale-days` default 30). At audit time exactly one rule was stale and the test passed. Around **2026-07-30**, `DEMO-TEST-002` (lastSeen 2026-06-29) would have crossed the threshold, the fresh report would have gained a second stale entry, `deepEqual` would have failed, and CI would have gone red on every branch — with the rest of the report untouched, so it would have looked like mysterious data drift. By early September every demo rule would have been stale.
+- **Fix applied:** `report.mjs` now accepts `--now <ISO-8601>`, used for staleness and `generatedAt` instead of the wall clock. The demo artifacts were regenerated with a pinned `--now`, and the regeneration test passes the same pin and compares byte-exact. Report time is now reproducible in general, not just for the demo.
 
 ### U2. Retired-ID handling is asymmetric for deviations
 
@@ -95,11 +94,10 @@ Items the specs deliberately or implicitly left out, unchanged since the origina
 
 In order:
 
-1. **This week — defuse U1** (the stale-flag time bomb) before ~2026-07-30. XS–S; without it, CI fails on its own in about three weeks.
-2. **Cut and publish v1.3.0.** Everything is staged: bump the four lockstep locations, move Unreleased in the CHANGELOG, tag (plus the retro `v1.1.0`/`v1.2.0` tags per RELEASING.md), `npm publish` (name confirmed available), GitHub releases. Until this happens, the README's pinned install command is aspirational. Maintainer-credentialed; roughly an hour.
-3. **Run the compliance pilot** (`evals/compliance/run.mjs --exec --trials 2`, then `--report`) and replace `PILOT.md` with real numbers, whatever they show. This is the highest-value un-run command in the repo — it produces the only quantitative evidence in this product category.
-4. **Run the importer canary probes** for Codex CLI (and Cursor/Copilot if convenient) and upgrade the matrix evidence from docs-cited to probe-verified; flip this repo's own `AGENTS.md` to a generated importer if the Codex probe comes back negative.
-5. **Small correctness batch** (one agent task, XS items from §2–3): U2 retired-deviations, U3(b) double config load, U4 frontmatter, U5 doc sentence, plus the leftover H2 MUST-hardcode and the A6 transcript tail-read. One spec, one PR.
-6. **Then the flywheel, in ROI order:** `doctor` command (closes U3(a) and the "why is my report empty" support burden), the PR trace-lint GitHub Action, hosted demo dashboard, org-export seam.
+1. **Cut and publish v1.3.0.** Everything is staged: bump the four lockstep locations, move Unreleased in the CHANGELOG, tag (plus the retro `v1.1.0`/`v1.2.0` tags per RELEASING.md), `npm publish` (name confirmed available), GitHub releases. Until this happens, the README's pinned install command is aspirational. Maintainer-credentialed; roughly an hour.
+2. **Run the compliance pilot** (`evals/compliance/run.mjs --exec --trials 2`, then `--report`) and replace `PILOT.md` with real numbers, whatever they show. This is the highest-value un-run command in the repo — it produces the only quantitative evidence in this product category.
+3. **Run the importer canary probes** for Codex CLI (and Cursor/Copilot if convenient) and upgrade the matrix evidence from docs-cited to probe-verified; flip this repo's own `AGENTS.md` to a generated importer if the Codex probe comes back negative.
+4. **Small correctness batch** (one agent task, XS items from §2–3): U2 retired-deviations, U3(b) double config load, U4 frontmatter, U5 doc sentence, plus the leftover H2 MUST-hardcode and the A6 transcript tail-read. Spec'd as `specs/phase5-01-correctness-batch.md`; one PR.
+5. **Then the flywheel, in ROI order:** `doctor` command (closes U3(a) and the "why is my report empty" support burden), the PR trace-lint GitHub Action, hosted demo dashboard, org-export seam.
 
-**Bottom line:** the codebase has crossed from "well-crafted personal tool with structural risks" to "adoption-ready with the structural risks closed." The remaining gap is not code — it's execution of the three real-world steps only a maintainer or a funded agent run can do: publish the package, run the pilot, run the probes. Plus one small fix (U1) with a hard deadline of roughly July 30.
+**Bottom line:** the codebase has crossed from "well-crafted personal tool with structural risks" to "adoption-ready with the structural risks closed," and the one latent CI-breakage risk this audit found (U1) is already fixed. The remaining gap is not code — it's execution of the three real-world steps only a maintainer or a funded agent run can do: publish the package, run the pilot, run the probes.
