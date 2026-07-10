@@ -16,3 +16,5 @@ jobs:
       # Skill scripts are dependency-free; no install step needed.
       - name: Run tests
         run: node --test tests/*.test.mjs
+      - name: Validate rule trace rules
+        run: node skills/rule-trace/scripts/validate-rules.mjs

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rule tracing — usage report</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; margin: 0; padding: 2rem; max-width: 1000px; margin-inline: auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  .sub { color: #888; margin: 0 0 1.5rem; font-size: .9rem; }
+  .stats { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 2rem; }
+  .stat { background: rgba(127,127,127,.1); border-radius: 8px; padding: .75rem 1rem; }
+  .stat b { display: block; font-size: 1.6rem; }
+  .stat span { color: #888; font-size: .8rem; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid rgba(127,127,127,.2); }
+  th { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: #888; }
+  td.num, td.rate { text-align: right; }
+  .mono { font-family: ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .rate { position: relative; min-width: 120px; }
+  .bar { display: inline-block; height: 8px; background: #4a9; border-radius: 4px; vertical-align: middle; margin-right: 6px; }
+  tr.dead td { opacity: .5; }
+  tr.never .bar { background: #c55; }
+  tr.low .bar { background: #db4; }
+  section { margin-top: 2rem; }
+  h2 { font-size: 1rem; border-bottom: 2px solid rgba(127,127,127,.2); padding-bottom: .3rem; }
+  .count { color: #888; font-weight: normal; }
+  .empty { color: #888; }
+  ul { margin: .5rem 0; }
+  li { margin: .15rem 0; }
+  .note { background: rgba(219,180,68,.12); border-left: 3px solid #db4; padding: .75rem 1rem; border-radius: 4px; margin-bottom: 1.5rem; font-size: .9rem; }
+</style></head>
+<body>
+  <h1>Rule tracing — usage report</h1>
+  <p class="sub">Generated 2026-07-09T21:04:15.246Z</p>
+  
+  <div class="note">Counts are self-reported by the model — they record what it <em>claimed</em> it applied, not proof it complied. Use this as a review surface. A rule never surfaced as a candidate is invisible here (false absence), so low totals early on are expected.</div>
+  <div class="stats">
+    <div class="stat"><b>31</b><span>trace blocks</span></div>
+    <div class="stat"><b>74%</b><span>31 of 42 responses traced</span></div>
+    <div class="stat"><b>7</b><span>distinct rules seen</span></div>
+    <div class="stat"><b>7</b><span>rules in catalog</span></div>
+    <div class="stat"><b>1</b><span>never-candidate (dead)</span></div>
+  </div>
+  <div class="scroll"><table>
+    <thead><tr><th>Rule</th><th>Sev</th><th>Candidate</th><th>Applied</th><th>Waived</th><th>Application rate</th></tr></thead>
+    <tbody><tr class="ok">
+        <td class="mono">DEMO-ROOT-001</td>
+        <td>MUST</td>
+        <td class="num">31</td>
+        <td class="num">21</td>
+        <td class="num"></td>
+        <td class="rate"><span class="bar" style="width:68%"></span><span class="ratenum">68%</span></td>
+      </tr>
+<tr class="low">
+        <td class="mono">DEMO-ROOT-002</td>
+        <td>MUST</td>
+        <td class="num">31</td>
+        <td class="num">2</td>
+        <td class="num"></td>
+        <td class="rate"><span class="bar" style="width:6%"></span><span class="ratenum">6%</span></td>
+      </tr>
+<tr class="never">
+        <td class="mono">DEMO-ROOT-003</td>
+        <td>SHOULD</td>
+        <td class="num">31</td>
+        <td class="num">0</td>
+        <td class="num"></td>
+        <td class="rate"><span class="bar" style="width:0%"></span><span class="ratenum">0%</span></td>
+      </tr>
+<tr class="ok">
+        <td class="mono">DEMO-TEST-001</td>
+        <td>MUST</td>
+        <td class="num">10</td>
+        <td class="num">7</td>
+        <td class="num">3</td>
+        <td class="rate"><span class="bar" style="width:70%"></span><span class="ratenum">70%</span></td>
+      </tr>
+<tr class="low">
+        <td class="mono">DEMO-TEST-002</td>
+        <td>SHOULD</td>
+        <td class="num">6</td>
+        <td class="num">2</td>
+        <td class="num"></td>
+        <td class="rate"><span class="bar" style="width:33%"></span><span class="ratenum">33%</span></td>
+      </tr>
+<tr class="ok">
+        <td class="mono">DEMO-ROOT-004</td>
+        <td>SHOULD</td>
+        <td class="num">3</td>
+        <td class="num">3</td>
+        <td class="num"></td>
+        <td class="rate"><span class="bar" style="width:100%"></span><span class="ratenum">100%</span></td>
+      </tr>
+<tr class="dead">
+        <td class="mono">DEMO-TEST-003</td>
+        <td>MAY</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num"></td>
+        <td class="rate"><span class="bar" style="width:0%"></span><span class="ratenum">—</span></td>
+      </tr></tbody>
+  </table></div>
+  <section><h2>Un-waived MUST gaps (highest priority) <span class="count">2</span></h2><ul><li class="mono">DEMO-ROOT-001 — 10×</li><li class="mono">DEMO-ROOT-002 — 29×</li></ul></section>
+  <section><h2>Always candidate, never applied (miscoped or ignored) <span class="count">1</span></h2><ul><li class="mono">DEMO-ROOT-003</li></ul></section>
+  <section><h2>Low application rate <span class="count">3</span></h2><ul><li class="mono">DEMO-ROOT-002 — 6%</li><li class="mono">DEMO-ROOT-003 — 0%</li><li class="mono">DEMO-TEST-002 — 33%</li></ul></section>
+  <section><h2>Dead rules (never a candidate — retire or re-scope) <span class="count">1</span></h2><ul><li class="mono">DEMO-TEST-003</li></ul></section>
+  <section><h2>Stale (used before, not recently) <span class="count">1</span></h2><ul><li class="mono">DEMO-ROOT-004 — last seen 2026-05-28T12:00:00Z</li></ul></section>
+  <section><h2>Unknown IDs cited (hallucinated or stale) <span class="count">1</span></h2><ul><li class="mono">DEMO-OLD-999 — 2×</li></ul></section>
+</body></html>

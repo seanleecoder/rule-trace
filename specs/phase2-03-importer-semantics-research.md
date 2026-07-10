@@ -56,3 +56,10 @@ Append a short "Findings → 3.2 scope" section to **this spec file** (specs are
 - Implementing generated importers or any new importer type (spec 3.2).
 - Testing tools not named in this repo's docs.
 - Changing default config (`DEFAULT_CONFIG.importers`) — behavior stays; only truth-in-documentation changes.
+
+## Findings → 3.2 scope
+
+- Claude Code can stay on thin `@` importers for `CLAUDE.md`; generated importers should avoid nested imports because only Claude Code reliably expands them recursively.
+- OpenCode can stay on `.opencode/opencode.json` with an `instructions` array that lists canonical files directly; generated output should preserve a flat list and may use OpenCode-supported globs only when all matched files are intentional.
+- OpenAI Codex CLI / `AGENTS.md`, Cursor, and GitHub Copilot need generated or inlined native instruction files because the documented formats treat their entry points as instruction text/rule files, not include-capable manifests.
+- Cursor generation must target `.cursor/rules/*.mdc` with the frontmatter/description shape required by Cursor rules, while Copilot generation must target `.github/copilot-instructions.md` as repository instructions.

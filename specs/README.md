@@ -32,7 +32,7 @@ These are non-negotiable repo invariants. Violating any of them is a review-bloc
 5. **Docs move with code.** If a script's flags, output, or file layout changes, update `README.md`, `skills/rule-trace/SKILL.md`, and the relevant `skills/rule-trace/references/*.md` in the same change. The doc-integrity tests catch dangling script references; you are responsible for prose accuracy.
 6. **Backward compatibility of the event log.** `.agents/metrics/traces.jsonl` files written by v1.2.0 must keep aggregating correctly forever. New event fields are additive; readers must tolerate their absence.
 7. **The Stop hook must never block or throw.** Any change to `record-trace.mjs` keeps the outer try/catch + `process.exit(0)` envelope and stays cheap per turn.
-8. **Run `npm test` and fix all failures before finishing.** 33 tests pass today; your change should leave more passing, never fewer.
+8. **Run `npm test` and fix all failures before finishing.** 42 tests pass today; your change should leave more passing, never fewer.
 
 ## Definition of done (every spec)
 
