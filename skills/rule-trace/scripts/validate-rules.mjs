@@ -27,7 +27,8 @@ import {
   loadCatalog,
   catalogIdSet,
   readImporterImports,
-  parseTraceBlock,
+  parseAllTraceBlocks,
+  generatedImporterStatus,
   ruleTracePluginEnabled,
   manualRecorderHookWired,
 } from './lib/rules.mjs'
@@ -54,23 +55,23 @@ function lintTraceFile(root, file) {
   const config = loadConfig(root)
   const known = catalogIdSet(loadCatalog(root, config))
   const text = fs.readFileSync(file, 'utf8')
-  const trace = parseTraceBlock(text)
+  const traces = parseAllTraceBlocks(text)
   const errors = []
-  if (!trace) {
+  if (!traces.length) {
     return { errors, warnings: [], info: ['No Rule trace block found.'] }
   }
-  const cited = new Set([
+  const cited = new Set(traces.flatMap(trace => [
     ...trace.candidate,
     ...trace.applied,
     ...trace.deviations,
-  ])
+  ]))
   for (const id of cited) {
     if (!known.has(id)) errors.push(`Cited rule ID not in catalog: ${id}`)
   }
   return {
     errors,
     warnings: [],
-    info: [`Cited ${cited.size} distinct rule IDs; ${errors.length} unknown.`],
+    info: [`Cited ${cited.size} distinct rule IDs across ${traces.length} trace blocks; ${errors.length} unknown.`],
   }
 }
 
@@ -125,9 +126,21 @@ function validate(root, opts) {
     }
   }
 
-  // Importer parity: all importers must load the identical set of files.
+  // Importer parity applies to reference importers; generated importers are
+  // checked for freshness against the same canonical renderer used by sync.
   const importerSets = []
   for (const importer of config.importers) {
+    if (importer.type === 'generated') {
+      const status = generatedImporterStatus(root, config, importer)
+      if (status.state === 'missing') {
+        warnings.push(`Importer ${importer.path} not found; skipping generated freshness check for it.`)
+      } else if (status.state === 'missing-markers') {
+        errors.push(`Generated importer ${importer.path} exists but has no rule-trace generated markers; move user content outside a generated marker block or remove the file before syncing.`)
+      } else if (status.state !== 'fresh') {
+        errors.push(`Generated importer ${importer.path} is stale; run rule-trace sync.`)
+      }
+      continue
+    }
     let imports
     try {
       imports = readImporterImports(root, importer)

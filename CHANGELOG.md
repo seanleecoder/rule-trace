@@ -6,6 +6,8 @@ All notable changes to this project are documented here. This project follows [K
 
 ### Added
 - Live trace coverage metrics, read-side event deduplication, report staleness detection, and release-readiness documentation.
+- Structured fenced `rule-trace` JSON parsing with prose fallback for trace blocks.
+- Generated importer support and the `sync` command for reference-blind tools such as Cursor and GitHub Copilot.
 
 ## [1.2.0] - 2026-06-29
 

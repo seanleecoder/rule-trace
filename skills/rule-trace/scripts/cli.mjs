@@ -16,6 +16,7 @@ const COMMANDS = {
   report: 'report.mjs',
   catalog: 'generate-catalog.mjs',
   scaffold: 'scaffold-wiring.mjs',
+  sync: 'sync-importers.mjs',
 }
 
 const HELP = `rule-trace <command> [options]
@@ -35,6 +36,8 @@ Commands:
   catalog    Generate the rule catalog from the rule ID headings (preserves
              existing summaries). Prints a dry run; --write persists it.
              Flags: --root <dir>  --write
+  sync       Materialize generated importers; --check verifies freshness without writing.
+             Flags: --root <dir>  --check
   scaffold   Write the optional operational wiring (metrics .gitignore, a CI job
              that runs the validator, the Claude Code Stop hook). Non-destructive.
              Flags: --root <dir>  --ci github|gitlab|none  --hook  --gitignore  --all

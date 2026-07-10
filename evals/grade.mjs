@@ -65,6 +65,7 @@ const traceTemplateFields = [
   'Sources',
   'Reasoning note',
   'Deviations',
+  '```rule-trace',
 ]
 const conventionHasTraceTemplate =
   conventionExists &&

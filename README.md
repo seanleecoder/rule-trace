@@ -79,9 +79,9 @@ After migration, each enforceable rule gets a stable ID and a trigger:
 - Rule: Run the relevant tests before finishing.
 ```
 
-An agent response can then disclose what mattered:
+An agent response can then disclose what mattered; the prose is for reviewers, and the fenced `rule-trace` JSON is the machine-stable data layer:
 
-```md
+````md
 Rule trace
 
 - Candidate rules loaded: [`ROOT-001`](rules/root.md), [`TEST-001`](rules/testing.md)
@@ -89,7 +89,11 @@ Rule trace
 - Sources: [`.agents/rules/root.md`](rules/root.md), [`.agents/rules/testing.md`](rules/testing.md)
 - Reasoning note: dependency commands were involved, but the change was docs-only.
 - Deviations: [`TEST-001`](rules/testing.md) - docs-only change; no runtime behavior changed.
+
+```rule-trace
+{"v":1,"candidate":["ROOT-001","TEST-001"],"applied":["ROOT-001"],"deviations":["TEST-001"]}
 ```
+````
 
 Across sessions, the report turns those traces into maintenance signal:
 
@@ -180,19 +184,22 @@ node <skill>/scripts/report.mjs --root <repo> --low-rate 0.5 --min-candidates 3 
 
 # Generate the catalog from rule headings, preserving curated summaries.
 node <skill>/scripts/generate-catalog.mjs --root <repo> --write
+
+# Materialize generated importers for reference-blind tools such as Cursor/Copilot.
+node <skill>/scripts/sync-importers.mjs --root <repo> --check
 ```
 
 The CLI exposes the same core tools:
 
 ```bash
-npx rule-trace@1 <validate|parse|report|catalog|scaffold>
+npx rule-trace@1 <validate|parse|report|catalog|scaffold|sync>
 # Pre-registry fallback (unpinned — prefer the registry):
 npx github:seanleecoder/rule-trace validate
 ```
 
 ## Counters And Dashboard
 
-Trace blocks already carry candidate and applied IDs, so the data exists in transcripts. The collectors append events into one UUID-deduped log at `.agents/metrics/traces.jsonl`.
+Trace blocks carry candidate and applied IDs in human-readable prose plus a fenced `rule-trace` JSON block, so the data exists in transcripts even if future model wording drifts. The collectors append events into one UUID-deduped log at `.agents/metrics/traces.jsonl`.
 
 - **Offline backfill:** `parse-traces.mjs` scans saved transcripts and appends trace blocks. It is re-runnable and tool-agnostic when the transcript records expose a UUID and assistant text.
 - **Live Claude Code hook:** `record-trace.mjs` records each finished main-agent response from a Claude Code `Stop` hook. The plugin wires this automatically; skills.sh and standalone installs can add the hook manually from `references/importer-wiring.md`.

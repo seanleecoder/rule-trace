@@ -10,15 +10,21 @@ Omit it only when no rule materially shaped the response (a purely conversationa
 
 ## Trace format
 
-```md
+````md
 Rule trace
 
-- Candidate rules loaded: ...
-- Rules applied: ...
-- Sources: ...
-- Reasoning note: ...
-- Deviations: ...
+- Candidate rules loaded: <linked IDs plausibly in scope>
+- Rules applied: <linked IDs that materially constrained the work>
+- Sources: <files defining the cited IDs>
+- Reasoning note: <why those rules mattered for this result>
+- Deviations: <in-scope rule deliberately NOT applied — ID + one-line justification> (omit if none)
+
+```rule-trace
+{"v":1,"candidate":["ROOT-001"],"applied":["ROOT-001"],"deviations":[]}
 ```
+````
+
+The fenced `rule-trace` JSON block is the machine-stable data layer; the prose remains the reviewer-facing artifact. When both are present, tooling reads the fenced block first and falls back to prose only if the JSON is absent or invalid.
 
 ## Semantics
 
@@ -34,11 +40,15 @@ Link every cited ID directly to its defining heading, e.g. `` [`ROOT-001`](rules
 
 ## Example
 
-```md
+````md
 Rule trace
 
 - Candidate rules loaded: [`ROOT-003`](rules/root.md), [`TEST-002`](rules/testing.md)
 - Rules applied: [`ROOT-003`](rules/root.md)
 - Sources: [`.agents/rules/root.md`](rules/root.md)
 - Reasoning note: the change was a formatting-only edit, so the style rule constrained it; no test rule was triggered.
+
+```rule-trace
+{"v":1,"candidate":["ROOT-003","TEST-002"],"applied":["ROOT-003"],"deviations":[]}
 ```
+````

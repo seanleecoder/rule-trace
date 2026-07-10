@@ -19,6 +19,7 @@ import {
   expandGlob,
   loadCatalog,
   loadConfig,
+  parseAllTraceBlocks,
   parseTraceBlock,
 } from '../skills/rule-trace/scripts/lib/rules.mjs'
 
@@ -100,6 +101,85 @@ test('parseTraceBlock handles a multiline (indented sub-bullet) trace block', ()
 
 test('parseTraceBlock returns null when there is no trace block', () => {
   assert.equal(parseTraceBlock('just a normal answer, no trace here'), null)
+})
+
+test('parseTraceBlock parses fenced-only JSON, dedupes, and drops invalid IDs', () => {
+  const trace = parseTraceBlock([
+    '```rule-trace',
+    '{"v":1,"candidate":["ROOT-001","ROOT-001","bad"],"applied":["TEST-002"]}',
+    '```',
+  ].join('\n'))
+  assert.deepEqual(trace, { candidate: ['ROOT-001'], applied: ['TEST-002'], deviations: [] })
+})
+
+test('parseTraceBlock treats valid fenced JSON as authoritative over prose', () => {
+  const text = [
+    'Rule trace',
+    '',
+    '- Candidate rules loaded: [`ROOT-999`](x)',
+    '',
+    '```rule-trace',
+    '{"v":1,"candidate":["ROOT-001"],"applied":[],"deviations":[]}',
+    '```',
+  ].join('\n')
+  assert.deepEqual(parseTraceBlock(text).candidate, ['ROOT-001'])
+})
+
+test('parseTraceBlock falls back from malformed fenced JSON to prose', () => {
+  const text = [
+    'Rule trace',
+    '',
+    '- Candidate rules loaded: [`ROOT-001`](x)',
+    '',
+    '```rule-trace',
+    'not json',
+    '```',
+  ].join('\n')
+  assert.deepEqual(parseTraceBlock(text).candidate, ['ROOT-001'])
+})
+
+test('parseTraceBlock uses the last fenced trace block', () => {
+  const text = [
+    '```rule-trace',
+    '{"v":1,"candidate":["ROOT-001"]}',
+    '```',
+    '```rule-trace',
+    '{"v":1,"candidate":["ROOT-002"]}',
+    '```',
+  ].join('\n')
+  assert.deepEqual(parseTraceBlock(text).candidate, ['ROOT-002'])
+})
+
+
+test('parseAllTraceBlocks does not double-count a prose trace with fenced data', () => {
+  const text = [
+    'Rule trace',
+    '',
+    '- Candidate rules loaded: [`ROOT-999`](x)',
+    '- Rules applied: [`ROOT-999`](x)',
+    '',
+    '```rule-trace',
+    '{"v":1,"candidate":["ROOT-001"],"applied":["ROOT-001"],"deviations":[]}',
+    '```',
+  ].join('\n')
+  const traces = parseAllTraceBlocks(text)
+  assert.equal(traces.length, 1)
+  assert.deepEqual(traces[0].candidate, ['ROOT-001'])
+})
+
+test('parseTraceBlock handles 4-backtick fences and rejects missing v', () => {
+  const valid = [
+    '````rule-trace',
+    '{"v":1,"candidate":["ROOT-001"]}',
+    '````',
+  ].join('\n')
+  assert.deepEqual(parseTraceBlock(valid).candidate, ['ROOT-001'])
+  const missingVersion = [
+    '```rule-trace',
+    '{"candidate":["ROOT-001"]}',
+    '```',
+  ].join('\n')
+  assert.equal(parseTraceBlock(missingVersion), null)
 })
 
 // --- fixture-based validator cases ---
@@ -191,12 +271,12 @@ test('missing severity fails by default but passes with --no-severity', () => {
   assert.equal(runValidator(dir, ['--no-severity']).status, 0)
 })
 
-test('trace-lint flags an unknown cited ID', () => {
+test('trace-lint flags an unknown cited ID in a second trace block', () => {
   const dir = writeFixture()
   const traceFile = path.join(dir, 'response.md')
   fs.writeFileSync(
     traceFile,
-    'Rule trace\n\n- Candidate rules loaded: [`ROOT-001`](x), [`ROOT-999`](y)\n',
+    'Rule trace\n\n- Candidate rules loaded: [`ROOT-001`](x)\n\n## Next\n\nRule trace\n\n- Candidate rules loaded: [`ROOT-999`](y)\n',
   )
   const { status, out } = runValidator(dir, ['--lint-file', traceFile])
   assert.equal(status, 1)
@@ -246,6 +326,14 @@ const SCAFFOLD = path.join(
 const REPORT = path.join(
   repoRoot,
   'skills/rule-trace/scripts/report.mjs',
+)
+const PARSE = path.join(
+  repoRoot,
+  'skills/rule-trace/scripts/parse-traces.mjs',
+)
+const SYNC = path.join(
+  repoRoot,
+  'skills/rule-trace/scripts/sync-importers.mjs',
 )
 
 function runScript(script, args = []) {
@@ -346,7 +434,7 @@ test('cli.mjs loads and its help lists every subcommand', () => {
   )
   const { status, out } = runScript(CLI, ['--help'])
   assert.equal(status, 0, out)
-  for (const cmd of ['validate', 'parse', 'report', 'catalog', 'scaffold']) {
+  for (const cmd of ['validate', 'parse', 'report', 'catalog', 'scaffold', 'sync']) {
     assert.match(out, new RegExp(`\\b${cmd}\\b`), `help should list ${cmd}`)
   }
 })
@@ -731,6 +819,79 @@ test('record-trace writes traced, untraced, and deduped live coverage events', (
   assert.deepEqual(events[1].candidate, ['ROOT-001'])
 })
 
+
+test('fenced traces flow through record-trace and parse-traces like prose traces', () => {
+  const proseText = [
+    'Rule trace',
+    '',
+    '- Candidate rules loaded: [`ROOT-001`](x)',
+    '- Rules applied: [`ROOT-001`](x)',
+    '- Deviations: none',
+  ].join('\n')
+  const fencedText = [
+    'Rule trace',
+    '',
+    '- Candidate rules loaded: [`ROOT-999`](x)',
+    '- Rules applied: [`ROOT-999`](x)',
+    '',
+    '```rule-trace',
+    '{"v":1,"candidate":["ROOT-001"],"applied":["ROOT-001"],"deviations":[]}',
+    '```',
+  ].join('\n')
+  const comparable = event => ({
+    traced: event.traced,
+    candidate: event.candidate,
+    applied: event.applied,
+    deviations: event.deviations,
+  })
+
+  const hookDir = writeReportFixture()
+  const hookTranscript = path.join(hookDir, 'hook.jsonl')
+  const hookPayload = JSON.stringify({ cwd: hookDir, transcript_path: hookTranscript, hook_event_name: 'Stop' })
+  for (const [uuid, text] of [['hook-prose', proseText], ['hook-fenced', fencedText]]) {
+    writeJsonl(hookTranscript, [{
+      type: 'assistant',
+      uuid,
+      sessionId: 's1',
+      timestamp: '2026-01-01T00:00:00.000Z',
+      message: { content: [{ type: 'text', text }] },
+    }])
+    const res = spawnSync(process.execPath, [path.join(repoRoot, 'skills/rule-trace/scripts/record-trace.mjs')], {
+      input: hookPayload,
+      encoding: 'utf8',
+      env: HERMETIC_ENV,
+    })
+    assert.equal(res.status, 0)
+  }
+  const hookEvents = fs.readFileSync(path.join(hookDir, '.agents', 'metrics', 'traces.jsonl'), 'utf8').trim().split('\n').map(JSON.parse)
+  assert.deepEqual(comparable(hookEvents[1]), comparable(hookEvents[0]))
+
+  const parseDir = writeReportFixture()
+  const transcripts = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-transcripts-'))
+  writeJsonl(path.join(transcripts, 'session.jsonl'), [
+    {
+      type: 'assistant',
+      uuid: 'parse-prose',
+      sessionId: 's1',
+      timestamp: '2026-01-01T00:00:00.000Z',
+      message: { content: [{ type: 'text', text: proseText }] },
+    },
+    {
+      type: 'assistant',
+      uuid: 'parse-fenced',
+      sessionId: 's1',
+      timestamp: '2026-01-01T00:00:01.000Z',
+      message: { content: [{ type: 'text', text: fencedText }] },
+    },
+  ])
+  const out = path.join(parseDir, 'offline.jsonl')
+  const parse = runScript(PARSE, ['--root', parseDir, '--transcripts', transcripts, '--out', out])
+  assert.equal(parse.status, 0, parse.out)
+  const parsedEvents = fs.readFileSync(out, 'utf8').trim().split('\n').map(JSON.parse)
+  assert.equal(parsedEvents.length, 2)
+  assert.deepEqual(comparable(parsedEvents[1]), comparable(parsedEvents[0]))
+})
+
 test('report computes coverage, ignores untraced counts, and warns below threshold', () => {
   const dir = writeReportFixture()
   const events = []
@@ -809,4 +970,100 @@ test('report rejects an invalid --since value', () => {
   const res = runScript(REPORT, ['--root', dir, '--since', 'banana'])
   assert.equal(res.status, 1)
   assert.match(res.out, /banana/)
+})
+
+
+test('sync-importers creates deterministic cursor-mdc generated importers and validator checks freshness', () => {
+  const dir = writeFixture()
+  fs.writeFileSync(path.join(dir, '.agents', 'rule-trace.config.json'), JSON.stringify({
+    packageRuleGlobs: [],
+    importers: [
+      { path: 'CLAUDE.md', type: 'at-import' },
+      { path: 'AGENTS.md', type: 'at-import' },
+      { path: '.cursor/rules/rule-trace.mdc', type: 'generated', flavor: 'cursor-mdc' },
+    ],
+  }))
+  const first = runScript(SYNC, ['--root', dir])
+  assert.equal(first.status, 0, first.out)
+  assert.match(first.out, /created .*rule-trace\.mdc/)
+  const generated = path.join(dir, '.cursor', 'rules', 'rule-trace.mdc')
+  const bytes1 = fs.readFileSync(generated, 'utf8')
+  assert.match(bytes1, /description:/)
+  assert.match(bytes1, /alwaysApply: true/)
+  assert.match(bytes1, /rule-trace:generated:begin/)
+  assert.match(bytes1, /## ROOT-001/)
+  const second = runScript(SYNC, ['--root', dir])
+  assert.equal(second.status, 0, second.out)
+  assert.match(second.out, /unchanged/)
+  assert.equal(fs.readFileSync(generated, 'utf8'), bytes1)
+  assert.equal(runValidator(dir).status, 0)
+  fs.appendFileSync(path.join(dir, '.agents', 'rules', 'root.md'), '\n<!-- changed -->\n')
+  const stale = runValidator(dir)
+  assert.equal(stale.status, 1)
+  assert.match(stale.out, /rule-trace\.mdc.*stale|stale.*rule-trace\.mdc/)
+  const check = runScript(SYNC, ['--root', dir, '--check'])
+  assert.equal(check.status, 1)
+  assert.equal(fs.readFileSync(generated, 'utf8'), bytes1, '--check must not write')
+  fs.writeFileSync(generated, `PREFACE\n${bytes1}\nTAIL\n`)
+  assert.equal(runScript(SYNC, ['--root', dir]).status, 0)
+  const withUserContent = fs.readFileSync(generated, 'utf8')
+  assert.ok(withUserContent.startsWith('PREFACE\n'))
+  assert.ok(withUserContent.endsWith('\nTAIL\n'))
+  assert.equal(runScript(SYNC, ['--root', dir, '--check']).status, 0)
+})
+
+
+test('mixed config still fails reference importer drift while generated importer is fresh', () => {
+  const dir = writeFixture()
+  fs.writeFileSync(path.join(dir, '.agents', 'rule-trace.config.json'), JSON.stringify({
+    packageRuleGlobs: [],
+    importers: [
+      { path: 'CLAUDE.md', type: 'at-import' },
+      { path: 'AGENTS.md', type: 'at-import' },
+      { path: '.cursor/rules/rule-trace.mdc', type: 'generated', flavor: 'cursor-mdc' },
+    ],
+  }))
+  assert.equal(runScript(SYNC, ['--root', dir]).status, 0)
+  fs.writeFileSync(path.join(dir, 'AGENTS.md'), '@.agents/rules/root.md\n@.agents/extra.md\n')
+  const { status, out } = runValidator(dir)
+  assert.equal(status, 1)
+  assert.match(out, /Importer drift/)
+  assert.doesNotMatch(out, /Generated importer .*stale/)
+})
+
+test('copilot-md generated importer renders markdown markers without frontmatter', () => {
+  const dir = writeFixture()
+  fs.writeFileSync(path.join(dir, '.agents', 'rule-trace.config.json'), JSON.stringify({
+    packageRuleGlobs: [],
+    importers: [
+      { path: '.github/copilot-instructions.md', type: 'generated', flavor: 'copilot-md' },
+    ],
+  }))
+  assert.equal(runScript(SYNC, ['--root', dir]).status, 0)
+  const generated = fs.readFileSync(path.join(dir, '.github', 'copilot-instructions.md'), 'utf8')
+  assert.ok(generated.startsWith('<!-- rule-trace:generated:begin'))
+  assert.doesNotMatch(generated, /^---\n/)
+  assert.match(generated, /## ROOT-001/)
+})
+
+test('validator and sync refuse to clobber existing generated files without markers', () => {
+  const dir = writeFixture()
+  fs.writeFileSync(path.join(dir, '.agents', 'rule-trace.config.json'), JSON.stringify({
+    packageRuleGlobs: [],
+    importers: [
+      { path: '.cursor/rules/rule-trace.mdc', type: 'generated', flavor: 'cursor-mdc' },
+    ],
+  }))
+  const generated = path.join(dir, '.cursor', 'rules', 'rule-trace.mdc')
+  fs.mkdirSync(path.dirname(generated), { recursive: true })
+  fs.writeFileSync(generated, 'user content without generated markers\n')
+  const validation = runValidator(dir)
+  assert.equal(validation.status, 1)
+  assert.match(validation.out, /has no rule-trace generated markers/)
+  assert.doesNotMatch(validation.out, /run rule-trace sync/)
+  const res = runScript(SYNC, ['--root', dir])
+  assert.equal(res.status, 1)
+  assert.match(res.out, /has no rule-trace generated markers/)
+  assert.doesNotMatch(res.out, /generated importers are stale/)
+  assert.equal(fs.readFileSync(generated, 'utf8'), 'user content without generated markers\n')
 })

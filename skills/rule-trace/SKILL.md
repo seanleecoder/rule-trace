@@ -7,7 +7,7 @@ license: MIT
 
 # Rule Trace
 
-Rules loaded into an agent are *loaded* context, not *applied* context — a rule that was followed looks identical to one that was ignored. This skill closes that gap. Every rule gets a **stable ID** anchored at a markdown heading; an agent that does real work appends a **trace block** disclosing which in-scope rules it considered (*candidates*) versus which it actually let constrain the work (*applied*); a **catalog** indexes every ID; deterministic **scripts** validate the system and **count** candidate-vs-applied usage across sessions so dead and miscoped rules become visible.
+Rules loaded into an agent are *loaded* context, not *applied* context — a rule that was followed looks identical to one that was ignored. This skill closes that gap. Every rule gets a **stable ID** anchored at a markdown heading; an agent that does real work appends a **trace block** with human-readable prose plus fenced `rule-trace` JSON disclosing which in-scope rules it considered (*candidates*) versus which it actually let constrain the work (*applied*); a **catalog** indexes every ID; deterministic **scripts** validate the system and **count** candidate-vs-applied usage across sessions so dead and miscoped rules become visible.
 
 The most valuable signal is the **diff between candidates and applied** — a rule that is always a candidate but never applied is noise, miscoped, or being ignored.
 
@@ -30,7 +30,7 @@ Goal: drop the convention in, create an empty catalog, seed one example rule, an
 
 1. Inspect the repo for existing agent entry points: `CLAUDE.md`, `AGENTS.md`, `.opencode/opencode.json`, `.cursorrules`, `.github/copilot-instructions.md`. If real rules already exist there, switch to **migrate** instead — don't scaffold over content.
 2. Copy `templates/rule-trace.md.tmpl` → `.agents/rule-trace.md`, `templates/rules-catalog.md.tmpl` → `.agents/rules-catalog.md`, and `templates/rule-file.md.tmpl` → `.agents/rules/root.md` (keep the one example rule so the layout is concrete).
-3. Wire every supported agent entry point present to reference the rule files in lockstep — see `references/importer-wiring.md` for which tools actually expand references. The non-negotiable invariant for configured importers: **all importers reference the identical set of files.** The validator enforces this. If the repo uses only one agent tool, set `importers` in `.agents/rule-trace.config.json` to just that entry so the validator doesn't warn about the absent ones.
+3. Wire every supported agent entry point present to reference the rule files in lockstep, or configure generated importers for tools that cannot expand references — see `references/importer-wiring.md` for which tools actually expand references. The non-negotiable invariant for configured importers: **reference importers load the identical set of files, while generated importers are fresh materializations of the same canonical content.** The validator enforces both. If the repo uses only one agent tool, set `importers` in `.agents/rule-trace.config.json` to just that entry so the validator doesn't warn about the absent ones.
 4. Run `node <skill>/scripts/validate-rules.mjs --root <repo>` and fix anything it reports.
 5. Optionally scaffold the operational wiring (a CI job that runs the validator, a metrics `.gitignore`, the Claude Code Stop hook) with `node <skill>/scripts/scaffold-wiring.mjs --root <repo>` — it's non-destructive. Offer this; don't force it.
 
@@ -42,7 +42,7 @@ This is the high-value mode and the part that needs judgment — extraction is n
 2. **Split** prose into discrete, individually-citable rules. One rule = one enforceable idea.
 3. **Assign IDs** by layer: repo-wide (`ROOT-`), topic/area (e.g. `TEST-`, `STYLE-`), package-local (`PKG-<PKG>-<AREA>-`). Number sequentially per prefix. IDs are immutable once published.
 4. **Rewrite** each rule into the anatomy in `references/rule-anatomy.md` (Scope / Applies when / Severity / Rule).
-5. **Build** the catalog — run `node <skill>/scripts/generate-catalog.mjs --root <repo> --write` to derive it from the headings (it preserves any summaries you've already written), then **wire** the importers (`references/importer-wiring.md`). See `references/catalog-format.md`.
+5. **Build** the catalog — run `node <skill>/scripts/generate-catalog.mjs --root <repo> --write` to derive it from the headings (it preserves any summaries you've already written), then **wire** the importers (`references/importer-wiring.md`). If you configure generated importers for Cursor, Copilot, or other reference-blind tools, run `node <skill>/scripts/sync-importers.mjs --root <repo>`. See `references/catalog-format.md`.
 6. **Validate**: `node <skill>/scripts/validate-rules.mjs --root <repo>` must pass.
 
 Extraction is agent judgment; the validator is the deterministic check on the output. Don't invent rules the sources don't support.
@@ -62,7 +62,7 @@ See "Counters" below.
 
 ## Counters
 
-Trace blocks already emit candidate + applied IDs in every relevant response, so the data exists in transcripts — it just needs collecting. Two collectors share one append-only event log (`<metricsDir>/traces.jsonl`), deduped by transcript message UUID so they never double-count:
+Trace blocks emit candidate + applied IDs in prose and fenced `rule-trace` JSON in every relevant response, so the data exists in transcripts — it just needs collecting. Two collectors share one append-only event log (`<metricsDir>/traces.jsonl`), deduped by transcript message UUID so they never double-count:
 
 - **Offline backfill (tool-agnostic):** `node <skill>/scripts/parse-traces.mjs --root <repo>` walks saved Claude Code transcripts (default `~/.claude/projects/<encoded-cwd>/`) and appends any trace blocks it finds. Re-runnable; retroactive over history. Point `--transcripts <dir>` at another tool's transcript store if its records expose `uuid` + an assistant `message.content`.
 - **Live Stop-hook (Claude Code only):** wire `scripts/record-trace.mjs` as a `Stop` hook (see `references/importer-wiring.md`). It records each finished main-agent response automatically, including untraced responses so reports can state trace coverage. Ignores `SubagentStop`; never blocks the agent. The plugin install already wires this hook, so the manual hook is for standalone installs only — never both, or the recorder runs twice per turn.
@@ -73,4 +73,4 @@ Then `node <skill>/scripts/report.mjs --root <repo>` aggregates the log into per
 
 ## Validate (CI)
 
-`node <skill>/scripts/validate-rules.mjs --root <repo>` checks: every catalog ID resolves to a heading; every heading is catalogued; no duplicate IDs; the importers reference identical file sets; required fields present (incl. Severity — pass `--no-severity` while migrating before severities are added); and warns on numbering gaps. Trace-lint mode `--lint-file <path>` flags cited IDs missing from the catalog. Exit 1 on errors. For copy-paste GitHub Actions / GitLab / package-script / Stop-hook snippets, see `references/ci-wiring.md`.
+`node <skill>/scripts/validate-rules.mjs --root <repo>` checks: every catalog ID resolves to a heading; every heading is catalogued; no duplicate IDs; reference importers load identical file sets; generated importers are fresh; required fields present (incl. Severity — pass `--no-severity` while migrating before severities are added); and warns on numbering gaps. Trace-lint mode `--lint-file <path>` flags cited IDs missing from the catalog. Exit 1 on errors. For copy-paste GitHub Actions / GitLab / package-script / Stop-hook snippets, see `references/ci-wiring.md`.
