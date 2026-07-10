@@ -65,3 +65,5 @@ node evals/compliance/run.mjs --exec --trials 2 --agent claude --report evals/co
 ```
 
 Read the rates as directional until trial counts are large. The runner reports compliance by arm, per-rule outcomes in JSON under `evals/compliance/results/`, trace-emission behavior, and whether traced-arm violations were disclosed as deviations or stayed silent. Do not tune checks after seeing outputs; publish null or negative results honestly. Agent-driven evals may cost money and do not run in CI.
+
+Note: the committed demo metrics under `examples/demo/.agents/metrics/` are regenerated artifacts. Phase 4 adds `flags.retired` and a retired-ID dashboard section; doc-integrity tests regenerate `report.json` and `dashboard.html` and compare them, ignoring only the generated timestamp.

@@ -74,6 +74,44 @@ test('layering check catches all common db client import forms', async () => {
 })
 
 
+test('layering repository and db implementation checks avoid filename-specific false results', async () => {
+  const checks = (await import(path.join(fixturesRoot, 'layering', 'checks.mjs'))).default
+  const repositoryCheck = checks.find(c => c.ruleId === 'LAYER-002')
+  const implementationCheck = checks.find(c => c.ruleId === 'LAYER-003')
+
+  const alternateComponent = tmp()
+  fs.mkdirSync(path.join(alternateComponent, 'src', 'components'), { recursive: true })
+  fs.writeFileSync(path.join(alternateComponent, 'src', 'components', 'Profile.jsx'), 'import users from "../repositories/users.js"')
+  assert.equal(repositoryCheck.check(alternateComponent), true)
+
+  const mockRepository = tmp()
+  fs.mkdirSync(path.join(mockRepository, 'src', 'components'), { recursive: true })
+  fs.writeFileSync(path.join(mockRepository, 'src', 'components', 'Profile.jsx'), 'import users from "../repositories/users-mock"')
+  assert.equal(repositoryCheck.check(mockRepository), false)
+
+  for (const filename of ['dbClient.js', 'database.js']) {
+    const dir = tmp()
+    fs.mkdirSync(path.join(dir, 'src', 'components'), { recursive: true })
+    fs.writeFileSync(path.join(dir, 'src', 'components', filename), 'export function createConnection() {}')
+    assert.equal(implementationCheck.check(dir), false, filename)
+  }
+})
+
+test('tests-required module-reference check rejects similarly named modules', async () => {
+  const checks = (await import(path.join(fixturesRoot, 'tests-required', 'checks.mjs'))).default
+  const check = checks.find(c => c.ruleId === 'TEST-003')
+  const good = tmp()
+  fs.mkdirSync(path.join(good, 'tests'), { recursive: true })
+  fs.writeFileSync(path.join(good, 'tests', 'math.test.js'), 'import { add } from "../src/math.js"')
+  assert.equal(check.check(good), true)
+
+  const bad = tmp()
+  fs.mkdirSync(path.join(bad, 'tests'), { recursive: true })
+  fs.writeFileSync(path.join(bad, 'tests', 'math.test.js'), 'import { add } from "../src/mathHelper.js"')
+  assert.equal(check.check(bad), false)
+})
+
+
 test('migration eval plan displays target cwd for codex', () => {
   const workspace = tmp()
   const res = spawnSync(process.execPath, [migrationRunner, '--fixtures', 'single-claude-md', '--agent', 'codex', '--workspace', workspace], { encoding: 'utf8' })
