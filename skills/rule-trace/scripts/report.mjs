@@ -69,6 +69,7 @@ function aggregate(root, opts) {
   const catalog = loadCatalog(root, config)
   const { byId } = scanRuleHeadings(root, config)
   const known = new Map(catalog.map(r => [r.id, r]))
+  const retiredIds = new Set(config.retiredIds || [])
 
   // severity from the heading (source of truth), falling back to the catalog.
   const severityOf = id =>
@@ -133,6 +134,7 @@ function aggregate(root, opts) {
     return rules.get(id)
   }
   const unknown = new Map()
+  const retired = new Map()
 
   for (const ev of events) {
     if (ev.traced === false) continue
@@ -141,11 +143,16 @@ function aggregate(root, opts) {
     const deviations = new Set(ev.deviations || [])
     const allCited = new Set([...candidate, ...applied, ...deviations])
     for (const id of allCited) {
-      if (!known.has(id)) {
+      if (!known.has(id) && !retiredIds.has(id)) {
         unknown.set(id, (unknown.get(id) || 0) + 1)
       }
     }
     for (const id of candidate) {
+      if (retiredIds.has(id)) {
+        if (!retired.has(id)) retired.set(id, { id, candidate: 0, applied: 0 })
+        retired.get(id).candidate++
+        continue
+      }
       const r = ensure(id)
       r.candidate++
       if (ev.timestamp && (!r.lastSeen || ev.timestamp > r.lastSeen))
@@ -154,7 +161,14 @@ function aggregate(root, opts) {
       if (severityOf(id) === 'MUST' && !applied.has(id) && !deviations.has(id))
         r.unwaivedMust++
     }
-    for (const id of applied) ensure(id).applied++
+    for (const id of applied) {
+      if (retiredIds.has(id)) {
+        if (!retired.has(id)) retired.set(id, { id, candidate: 0, applied: 0 })
+        retired.get(id).applied++
+      } else {
+        ensure(id).applied++
+      }
+    }
     for (const id of deviations) ensure(id).deviations++
   }
 
@@ -208,6 +222,7 @@ function aggregate(root, opts) {
       })
       .map(t => ({ id: t.id, lastSeen: t.lastSeen })),
     unknownIds: [...unknown.entries()].map(([id, count]) => ({ id, count })),
+    retired: [...retired.values()],
   }
 
   return {
@@ -324,6 +339,7 @@ function buildHtml(data, lowRate = 0.5) {
   ${list('Low application rate', flags.lowRate, x => `<li class="mono">${esc(x.id)} — ${Math.round(x.rate * 100)}%</li>`)}
   ${list('Dead rules (never a candidate — retire or re-scope)', flags.deadRules, id => `<li class="mono">${esc(id)}</li>`)}
   ${list('Stale (used before, not recently)', flags.stale || [], x => `<li class="mono">${esc(x.id)} — last seen ${esc(x.lastSeen)}</li>`)}
+  ${list('Retired IDs cited in history', flags.retired || [], x => `<li class="mono">${esc(x.id)} — candidate ${x.candidate}×, applied ${x.applied}×</li>`)}
   ${list('Unknown IDs cited (hallucinated or stale)', flags.unknownIds, x => `<li class="mono">${esc(x.id)} — ${x.count}×</li>`)}
 </body></html>`
 }

@@ -12,6 +12,7 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 
 const COMMANDS = {
   validate: 'validate-rules.mjs',
+  collect: 'parse-traces.mjs',
   parse: 'parse-traces.mjs',
   report: 'report.mjs',
   catalog: 'generate-catalog.mjs',
@@ -26,7 +27,8 @@ Commands:
              every heading is catalogued, no duplicate IDs, importers agree, and
              required fields (incl. Severity) are present.
              Flags: --root <dir>  --no-severity  --lint-file <path>  --json
-  parse      Backfill rule-trace events from saved transcripts into the event log.
+  collect    Backfill rule-trace events from saved transcripts into the event log
+             (alias: parse).
              Flags: --root <dir>  --transcripts <dir>  --out <file>
   report     Aggregate the event log into report.json + a dashboard.html.
              Flags: --root <dir>  --out-json <file>  --out-html <file>

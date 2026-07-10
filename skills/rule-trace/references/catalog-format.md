@@ -37,6 +37,7 @@ The scripts resolve repo layout from an optional `.agents/rule-trace.config.json
   "packageRuleGlobs": ["packages/*/.agents/rules/*.md"],
   "catalogPath": ".agents/rules-catalog.md",
   "metricsDir": ".agents/metrics",
+  "retiredIds": [],
   "severities": ["MUST", "SHOULD", "MAY"],
   "importers": [
     { "path": "CLAUDE.md", "type": "at-import" },
@@ -46,7 +47,7 @@ The scripts resolve repo layout from an optional `.agents/rule-trace.config.json
 }
 ```
 
-Add a config when the target repo deviates — e.g. a non-monorepo with no `packageRuleGlobs`, a different importer set, or a generated Cursor/Copilot entry point. `importers[].type` is `at-import` (lines like `@path/to/file.md`), `opencode-instructions` (the JSON `instructions` array), or `generated` (materialized canonical content between markers). Generated importers also set `flavor`: `cursor-mdc`, `copilot-md`, or `plain-md`. Importers not present in the repo are skipped with a warning rather than failing the parity/freshness check.
+`packageRuleGlobs` supports explicit single-segment `*` wildcards such as `packages/*/.agents/rules/*.md`; recursive `**` globs are unsupported and warn because they would otherwise hide deeper rule files. Add a config when the target repo deviates — e.g. a non-monorepo with no `packageRuleGlobs`, a different importer set, or a generated Cursor/Copilot entry point. `importers[].type` is `at-import` (lines like `@path/to/file.md`), `opencode-instructions` (the JSON `instructions` array), or `generated` (materialized canonical content between markers). Generated importers also set `flavor`: `cursor-mdc`, `copilot-md`, or `plain-md`. Importers not present in the repo are skipped with a warning rather than failing the parity/freshness check.
 
 Generated example:
 
@@ -55,3 +56,5 @@ Generated example:
 ```
 
 Run `node <skill>/scripts/sync-importers.mjs --root <repo>` to write generated importers, or add `--check` in CI to fail when canonical rules changed without regeneration.
+
+Retire immutable IDs by deleting the rule heading and catalog row, then adding the ID to `retiredIds`. The validator treats retired IDs as gap fillers, but errors if a retired ID is still defined.

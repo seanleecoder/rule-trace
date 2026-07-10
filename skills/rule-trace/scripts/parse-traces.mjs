@@ -51,6 +51,9 @@ if (!fs.existsSync(transcriptDir)) {
 }
 
 const files = fs.readdirSync(transcriptDir).filter(f => f.endsWith('.jsonl'))
+if (files.length === 0 && !args.transcripts) {
+  console.error(`No .jsonl transcripts found in derived transcript directory ${transcriptDir}; pass --transcripts <dir> explicitly if Claude Code stores this project elsewhere.`)
+}
 const events = []
 for (const file of files) {
   const records = readJsonl(path.join(transcriptDir, file))

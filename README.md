@@ -47,6 +47,14 @@ Most teams should start with the core loop:
 3. **Collect** trace blocks from saved transcripts or a live Claude Code hook.
 4. **Report** candidate/applied/deviation counts into `.agents/metrics/report.json` and an optional `dashboard.html`.
 
+
+| Workflow step | Who runs it | How |
+| --- | --- | --- |
+| Migrate / Init / Audit | agent (skill mode) | ask your agent |
+| Validate | CLI or CI | `rule-trace validate` |
+| Collect | CLI or Stop hook | `rule-trace collect` / hook |
+| Report | CLI | `rule-trace report` |
+
 The skill also supports `init` for new repos and `audit` for cleanup after you have enough usage data, but `migrate -> validate -> collect -> report` is the main release path. Do not skip collect: `report` only aggregates traces that already exist, so a report run before any traces are collected flags every catalogued rule as dead.
 
 ## Before And After
@@ -165,7 +173,7 @@ Useful starting points:
 - **No existing system:** ask for `init`. The agent creates `.agents/rule-trace.md`, `.agents/rules-catalog.md`, an example `.agents/rules/root.md`, and optional thin importers.
 - **Just validate:** run `rule-trace validate` or `node <skill>/scripts/validate-rules.mjs` from the target repo root.
 - **Verify it is working:** after migrate, ask a rule-shaped question such as `Which tests would matter if I changed the validator?`; a substantive response should end with `Rule trace`. If the live hook is wired, confirm `.agents/metrics/traces.jsonl` gained a line. Or try the committed demo first: `node <skill>/scripts/report.mjs --root examples/demo`.
-- **Just count usage:** run `parse` to backfill traces from transcripts, then `report` to build the report and dashboard.
+- **Just count usage:** run `collect` to backfill traces from transcripts, then `report` to build the report and dashboard.
 - **Ready to clean up:** after you have enough trace data, ask for `audit` to classify rules as keep, revise, remove, consolidate, or add.
 
 ## Commands
@@ -192,7 +200,7 @@ node <skill>/scripts/sync-importers.mjs --root <repo> --check
 The CLI exposes the same core tools:
 
 ```bash
-npx rule-trace@1 <validate|parse|report|catalog|scaffold|sync>
+npx rule-trace@1 <validate|collect|report|catalog|scaffold|sync>
 # Pre-registry fallback (unpinned — prefer the registry):
 npx github:seanleecoder/rule-trace validate
 ```
@@ -201,7 +209,7 @@ npx github:seanleecoder/rule-trace validate
 
 Trace blocks carry candidate and applied IDs in human-readable prose plus a fenced `rule-trace` JSON block, so the data exists in transcripts even if future model wording drifts. The collectors append events into one UUID-deduped log at `.agents/metrics/traces.jsonl`.
 
-- **Offline backfill:** `parse-traces.mjs` scans saved transcripts and appends trace blocks. It is re-runnable and tool-agnostic when the transcript records expose a UUID and assistant text.
+- **Offline collection/backfill:** `parse-traces.mjs` scans saved transcripts and appends trace blocks. It is re-runnable and tool-agnostic when the transcript records expose a UUID and assistant text.
 - **Live Claude Code hook:** `record-trace.mjs` records each finished main-agent response from a Claude Code `Stop` hook. The plugin wires this automatically; skills.sh and standalone installs can add the hook manually from `references/importer-wiring.md`.
 
 `report.mjs` writes `.agents/metrics/report.json` and `.agents/metrics/dashboard.html`. Tune noisy repos with `--low-rate <0..1>`, `--min-candidates <n>`, `--min-coverage <0..1>`, `--stale-days <n>`, and `--since <ISO-8601 date>`.
@@ -216,6 +224,13 @@ The dashboard highlights:
 - `unwaivedMustGaps` - `MUST` rules that were candidates but neither applied nor waived.
 - `stale` - rules that were candidates before but have not surfaced within the configured staleness window.
 - `unknownIds` - hallucinated or stale IDs cited by traces.
+
+
+## Stability
+
+Semver covers the public contract teams build around: the trace-block convention (including the prose labels and fenced `rule-trace` JSON format), the rule anatomy and rule-ID grammar, event JSONL fields, `.agents/rule-trace.config.json` keys, CLI command names and documented flags, and validator exit-code semantics.
+
+Semver does not cover internal script file paths or repository layout, dashboard HTML/CSS details, exact console-output wording, or `report.json` field ordering.
 
 ## What It Costs
 
@@ -234,7 +249,7 @@ A trace block is roughly 50–100 tokens on substantive responses. Rule files us
 - Malformed OpenCode config when `.opencode/opencode.json` is present.
 - Trace blocks that cite IDs missing from the catalog when using `--lint-file <path>`.
 
-It warns, but does not fail, when configured importers are absent or numbered IDs have gaps. If a repo intentionally uses only one agent tool, set `importers` in `.agents/rule-trace.config.json` to just that entry so validation stays quiet.
+It warns, but does not fail, when configured importers are absent or numbered IDs have gaps. If a gap is intentional because a rule was retired, add that ID to `retiredIds` in `.agents/rule-trace.config.json` so validation treats the gap as documented retirement rather than drift. If a repo intentionally uses only one agent tool, set `importers` in `.agents/rule-trace.config.json` to just that entry so validation stays quiet.
 
 Example package script:
 

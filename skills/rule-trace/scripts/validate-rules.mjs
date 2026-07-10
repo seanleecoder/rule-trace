@@ -84,11 +84,21 @@ function validate(root, opts) {
   const catalogRows = loadCatalog(root, config)
   const catalogIds = catalogIdSet(catalogRows)
   const headingIds = new Set(byId.keys())
+  const retiredIds = new Set(config.retiredIds || [])
 
   for (const dup of duplicates) {
     errors.push(
       `Duplicate rule ID ${dup.id} defined in: ${dup.files.join(', ')}`,
     )
+  }
+
+  for (const id of retiredIds) {
+    if (headingIds.has(id)) {
+      errors.push(`${id} is in retiredIds but still defined in ${byId.get(id).file} — remove the rule or un-retire it.`)
+    }
+    if (catalogIds.has(id)) {
+      errors.push(`${id} is in retiredIds but still listed in the catalog — remove the catalog row or un-retire it.`)
+    }
   }
 
   for (const id of catalogIds) {
@@ -188,7 +198,7 @@ function validate(root, opts) {
 
   // ID-number gaps per prefix (warning only).
   const byPrefix = new Map()
-  for (const id of headingIds) {
+  for (const id of new Set([...headingIds, ...retiredIds])) {
     const m = id.match(/^(.*?)-(\d+)$/)
     if (!m) continue
     if (!byPrefix.has(m[1])) byPrefix.set(m[1], [])

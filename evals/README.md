@@ -46,3 +46,24 @@ Use those paths directly to inspect or diff the eval outputs. If a Codex run pro
 The migrate eval checks that the repo now contains `.agents/rule-trace.md` with the expected trace-block template. It does not currently grade whether the agent's final chat response appended a `Rule trace` block; that belongs to trace-lint/transcript evals, not the migration-output score.
 
 The LLM modes are **not** in GitHub CI (no API key there); only mode 1 runs in CI. The grader (`grade.mjs`) and the synthetic fixtures are committed; `fixtures/oss/` and `.eval-workspace/` are git-ignored.
+
+
+## Compliance benchmark
+
+`evals/compliance/run.mjs` measures whether agents comply with the same rules more often when delivered as plain prose, rule-trace with the trace convention, or ID-only rule files without the convention. Fixtures live under `evals/compliance/fixtures/`; each committed `checks.mjs` is a deterministic, dependency-free oracle decided before agent runs.
+
+Plan mode is the default and never invokes an agent:
+
+```bash
+node evals/compliance/run.mjs
+```
+
+To run a real round, use an authenticated agent CLI and opt in explicitly:
+
+```bash
+node evals/compliance/run.mjs --exec --trials 2 --agent claude --report evals/compliance/PILOT.md
+```
+
+Read the rates as directional until trial counts are large. The runner reports compliance by arm, per-rule outcomes in JSON under `evals/compliance/results/`, trace-emission behavior, and whether traced-arm violations were disclosed as deviations or stayed silent. Do not tune checks after seeing outputs; publish null or negative results honestly. Agent-driven evals may cost money and do not run in CI.
+
+Note: the committed demo metrics under `examples/demo/.agents/metrics/` are regenerated artifacts. Phase 4 adds `flags.retired` and a retired-ID dashboard section; doc-integrity tests regenerate `report.json` and `dashboard.html` and compare them, ignoring only the generated timestamp.

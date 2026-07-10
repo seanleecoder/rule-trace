@@ -1,0 +1,5 @@
+[
+  {"id":"LAYER-001","text":"Components must not import the db client directly; go through src/repositories/."},
+  {"id":"LAYER-002","text":"User data access from components must go through src/repositories/users."},
+  {"id":"LAYER-003","text":"Keep the db client implementation under src/db/client.js, not under src/components/."}
+]

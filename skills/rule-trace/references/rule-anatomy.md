@@ -32,6 +32,6 @@ IDs are layered by reach so an agent can tell at a glance how broadly a rule app
 | Package-local | `PKG-<PKG>-<AREA>-NNN` | `PKG-EXPO-CODE-003` | `packages/<pkg>/.agents/rules/<area>.md` |
 
 Rules:
-- **Numbered sequentially per prefix**, no gaps (the validator warns on gaps). Append new rules at the next number.
-- **Immutable once published.** Don't renumber or repurpose an ID — traces, the catalog, and the counters all reference it. To retire a rule, remove it from both its file and the catalog (its historical counts simply stop growing).
+- **Numbered sequentially per prefix**, with no gaps among live IDs unless the missing numbers are listed in `retiredIds` (the validator warns on undocumented gaps). Append new rules at the next number.
+- **Immutable once published.** Don't renumber or repurpose an ID — traces, the catalog, and the counters all reference it. To retire a rule, remove the heading from its file, remove its catalog row, and add the ID to `retiredIds` in `.agents/rule-trace.config.json`; historical report counts then appear as retired rather than unknown.
 - Keep `root.md` for genuinely cross-cutting facts. A rule that only applies to one area belongs in that area's file, with the matching prefix. Misfiled rules become dead weight in candidate sets.
