@@ -34,7 +34,7 @@ Commands:
              Flags: --root <dir>  --out-json <file>  --out-html <file>
                     --low-rate <0..1>  --min-candidates <n>
                     --min-coverage <0..1>  --stale-days <n>
-                    --since <ISO-8601 date>
+                    --since <ISO-8601 date>  --now <ISO-8601 date>
   catalog    Generate the rule catalog from the rule ID headings (preserves
              existing summaries). Prints a dry run; --write persists it.
              Flags: --root <dir>  --write

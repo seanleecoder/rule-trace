@@ -1,38 +1,34 @@
 # Implementation specs — rule-trace design-review follow-ups
 
-Phased, agent-ready specs implementing the top-leverage improvements from [`DESIGN_REVIEW.md`](../DESIGN_REVIEW.md). Each spec is self-contained: an AI agent should be able to implement it from the spec file alone, without reading the full review.
+Phased, agent-ready specs from the design review ([`DESIGN_REVIEW.md`](../DESIGN_REVIEW.md)) and its post-implementation audit ([`DESIGN_REVIEW_UPDATE.md`](../DESIGN_REVIEW_UPDATE.md)). Each spec is self-contained: an agent should be able to implement it from the spec file alone.
 
-## How to use these specs
+## Status
 
-Hand one spec file to one agent per task. Specs within a phase are independent unless a **Depends on** line says otherwise. Phases are ordered: finish (or at least land the blocking parts of) a phase before starting the next, because later phases build on earlier outputs.
+Phases 1–4 were implemented in PRs #3–#7 and audited in `DESIGN_REVIEW_UPDATE.md` (69/69 tests green at audit time). Fully-completed spec files have been **removed** — their content lives in git history (`git log -- specs/`) and their outcomes in the audit's scorecard. What remains here is only actionable work:
 
-## Phases
-
-| Phase | Theme | Specs |
+| Spec | What remains | Who can do it |
 | --- | --- | --- |
-| **1 — Make the numbers trustworthy** | Correctness and interpretability of the metrics pipeline. No breaking changes. | [1.1 Coverage metric](phase1-01-coverage-metric.md) · [1.2 Report correctness](phase1-02-report-correctness.md) · [1.3 Release hygiene](phase1-03-release-hygiene.md) |
-| **2 — Make it adoptable** | Credibility and first-contact assets. | [2.1 Dogfood this repo](phase2-01-dogfood.md) · [2.2 Example + README overhaul](phase2-02-examples-and-readme.md) · [2.3 Importer-semantics research](phase2-03-importer-semantics-research.md) |
-| **3 — Close the architectural gaps** | The long-term fragilities, fixed while the installed base is small. | [3.1 Structured trace format](phase3-01-structured-trace.md) · [3.2 Generated importers + Cursor support](phase3-02-generated-importers-cursor.md) |
-| **4 — Polish and flywheel** | UX consistency, OSS hygiene, and the benchmark. | [4.1 CLI/UX polish batch](phase4-01-ux-polish.md) · [4.2 OSS hygiene pass](phase4-02-oss-hygiene.md) · [4.3 Compliance-delta benchmark](phase4-03-compliance-benchmark.md) |
+| [1.3 Release execution](phase1-03-release-hygiene.md) | Cut v1.3.0: lockstep bump, retro + release tags, `npm publish` (name confirmed available), GitHub releases. Until then `npx rule-trace@1` resolves to nothing. | Maintainer (agent can prep the release PR) |
+| [2.3 Importer canary probes](phase2-03-importer-semantics-research.md) | Run the empirical `@`-import probes (Codex critical); upgrade the support matrix from docs-cited to probe-verified; flip this repo's `AGENTS.md` to a generated importer if Codex is reference-blind. | Anyone with the tool CLIs + credentials |
+| [4.3 Compliance pilot](phase4-03-compliance-benchmark.md) | Run `evals/compliance/run.mjs --exec` and replace the `PILOT.md` placeholder with real numbers — the highest-value un-run command in the repo. | Anyone with an agent CLI + spend |
+| [5.1 Correctness batch](phase5-01-correctness-batch.md) | Six small fixes from the post-implementation audit: retired-deviation counting, double config load, cursor-mdc frontmatter modes, fenced-lint doc note, strongest-severity gap flag, Stop-hook tail read. | Any agent |
 
-Dependency edges that cross phases:
+Removed (done — see `DESIGN_REVIEW_UPDATE.md` §1 for the audit): 1.1 coverage metric · 1.2 report correctness · 2.1 dogfood · 2.2 example + README · 3.1 structured trace · 3.2 generated importers · 4.1 UX polish · 4.2 OSS hygiene. The U1 stale-flag time bomb found in the audit was fixed directly (report `--now`), not spec'd.
 
-- 2.2 (examples/README) consumes the output of 2.1 (dogfood) and benefits from 1.1/1.2 (coverage + stale appear in the screenshot).
-- 3.2 (generated importers) is **scoped by the findings of 2.3** (importer research) — do not start 3.2 before 2.3 is done.
-- 3.1 (structured trace) should land before any wide promotion push, so new adopters emit the versioned format from day one.
+Future candidates (not yet spec'd, in ROI order — see `DESIGN_REVIEW_UPDATE.md` §5): `doctor` command (one-shot "is collection actually working", closes the silent-config failure mode) · PR trace-lint GitHub Action · hosted demo dashboard · org-export seam.
 
 ## Global conventions (apply to every spec)
 
-These are non-negotiable repo invariants. Violating any of them is a review-blocking defect:
+These are non-negotiable repo invariants — they are also this repo's own dogfooded rules under [`.agents/rules/`](../.agents/rules/), enforced by the validator in CI. Violating any of them is a review-blocking defect:
 
 1. **No runtime dependencies.** All scripts run on stock Node ≥ 18 (`node:` builtins only). Do not add anything to `dependencies` or `devDependencies`.
 2. **Version lockstep.** `package.json`, `.claude-plugin/plugin.json`, `skills/rule-trace/metadata.json`, and the `version:` frontmatter in `skills/rule-trace/SKILL.md` must carry the same version. A test enforces this (`tests/doc-integrity.test.mjs`). Bump all four together, or none.
 3. **Match the existing style:** ES modules, single quotes, no semicolons, 2-space indent, comments that state constraints rather than narrate code.
-4. **Every behavior change gets a test** in `tests/` (node:test, hermetic — use `fs.mkdtempSync` fixtures and the `CLAUDE_CONFIG_DIR` isolation pattern from `tests/rule-trace.test.mjs:35-36`).
-5. **Docs move with code.** If a script's flags, output, or file layout changes, update `README.md`, `skills/rule-trace/SKILL.md`, and the relevant `skills/rule-trace/references/*.md` in the same change. The doc-integrity tests catch dangling script references; you are responsible for prose accuracy.
-6. **Backward compatibility of the event log.** `.agents/metrics/traces.jsonl` files written by v1.2.0 must keep aggregating correctly forever. New event fields are additive; readers must tolerate their absence.
+4. **Every behavior change gets a test** in `tests/` (node:test, hermetic — `fs.mkdtempSync` fixtures and the `CLAUDE_CONFIG_DIR` isolation pattern from `tests/rule-trace.test.mjs`).
+5. **Docs move with code.** If a script's flags, output, or file layout changes, update `README.md`, `skills/rule-trace/SKILL.md`, and the relevant `skills/rule-trace/references/*.md` in the same change; update `CHANGELOG.md` under Unreleased for notable behavior changes.
+6. **Backward compatibility of the event log.** `.agents/metrics/traces.jsonl` files written by earlier versions must keep aggregating correctly forever. New event fields are additive; readers must tolerate their absence.
 7. **The Stop hook must never block or throw.** Any change to `record-trace.mjs` keeps the outer try/catch + `process.exit(0)` envelope and stays cheap per turn.
-8. **Run `npm test` and fix all failures before finishing.** 42 tests pass today; your change should leave more passing, never fewer.
+8. **Run `npm test` and fix all failures before finishing** — and keep `node skills/rule-trace/scripts/validate-rules.mjs` (repo root) green with zero warnings.
 
 ## Definition of done (every spec)
 

@@ -212,7 +212,7 @@ Trace blocks carry candidate and applied IDs in human-readable prose plus a fenc
 - **Offline collection/backfill:** `parse-traces.mjs` scans saved transcripts and appends trace blocks. It is re-runnable and tool-agnostic when the transcript records expose a UUID and assistant text.
 - **Live Claude Code hook:** `record-trace.mjs` records each finished main-agent response from a Claude Code `Stop` hook. The plugin wires this automatically; skills.sh and standalone installs can add the hook manually from `references/importer-wiring.md`.
 
-`report.mjs` writes `.agents/metrics/report.json` and `.agents/metrics/dashboard.html`. Tune noisy repos with `--low-rate <0..1>`, `--min-candidates <n>`, `--min-coverage <0..1>`, `--stale-days <n>`, and `--since <ISO-8601 date>`.
+`report.mjs` writes `.agents/metrics/report.json` and `.agents/metrics/dashboard.html`. Tune noisy repos with `--low-rate <0..1>`, `--min-candidates <n>`, `--min-coverage <0..1>`, `--stale-days <n>`, and `--since <ISO-8601 date>`. Pass `--now <ISO-8601 date>` to pin report time for reproducible runs (staleness and `generatedAt` both derive from it).
 
 The live hook also records finished main-agent responses that omit a trace block, letting the report show trace coverage and warn when coverage is too low to trust dead-rule or low-rate conclusions. Trivial or conversational responses may intentionally omit traces, so 100% coverage is not the target; coverage is a sanity and trend signal.
 

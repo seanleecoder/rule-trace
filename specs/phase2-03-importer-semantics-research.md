@@ -1,63 +1,32 @@
-# Spec 2.3 — Research: what do non-Claude tools actually do with `@`-imports?
+# Spec 2.3 — Importer semantics (remaining: run the empirical canary probes)
 
-**Review finding:** DESIGN_REVIEW.md H1 (High). **Effort:** S. **Depends on:** nothing. **Type:** research + documentation — the only code change is a possible warning. **Blocks:** spec 3.2 is scoped by this spec's findings; do not start 3.2 first.
+**Status:** the documentation half is **done** (PR #5): `references/importer-wiring.md` opens with a five-tool support matrix, the README's cross-tool claims are scoped honestly, and the "Findings → 3.2 scope" memo below informed the generated-importers implementation (spec 3.2, shipped). But three matrix rows — **Codex CLI, Cursor, GitHub Copilot** — carry evidence marked "docs-cited; no live probe run". The remaining work is the empirical probe that upgrades those cells from *honest* to *verified*, plus acting on the result.
 
-## Goal
+## Remaining work
 
-The system's central cross-tool claim is that thin `@`-import entry points keep every agent tool "loading the same canonical rule files" (`README.md:29`, `references/importer-wiring.md:5`). But `@path` import syntax is a Claude Code feature; the AGENTS.md convention is plain markdown with no include directive. This spec establishes, per tool, whether an `@.agents/rules/root.md` line in `AGENTS.md` results in the rules actually entering the tool's context — and documents the truth.
+### R1 — Run the canary probes
 
-## Method
+For each of Codex CLI (critical), Cursor, and Copilot (if runnable): a scratch repo whose entry point (`AGENTS.md` / `.cursorrules` / `.github/copilot-instructions.md`) contains **only** an `@`-import of a rule file with a distinctive canary instruction ("always begin your reply with the word PINEAPPLE"), then one non-interactive run asking a trivial question. Canary present ⇒ that tool expands references; absent ⇒ confirmed reference-blind. Run each probe twice to guard against stochastic compliance. Record tool versions.
 
-For each tool below, determine the behavior by (in order of preference): official docs, the tool's public source code, or an empirical probe. An empirical probe = a scratch repo whose `AGENTS.md` contains only an `@`-import of a rule file containing a distinctive canary instruction ("always begin your reply with the word PINEAPPLE"), then one non-interactive run of the tool asking a trivial question; canary present ⇒ imports followed.
+Requires the tool CLIs and their credentials — this is why it hasn't run yet. If a tool still cannot be run, leave its row docs-cited and say so; never present an assumption as a probe result.
 
-Tools to cover (all are named in this repo's docs or defaults, `lib/rules.mjs:29-33`, `references/migration-guide.md:8`):
+### R2 — Update the matrix
 
-1. **Claude Code** (`CLAUDE.md`, `AGENTS.md`) — expected: follows `@`-imports; confirm and note nesting behavior (the docs already warn about nested imports, `importer-wiring.md:32`).
-2. **OpenAI Codex CLI** (`AGENTS.md`) — the critical unknown.
-3. **OpenCode** (`.opencode/opencode.json` `instructions` array) — expected: loads listed files; confirm the array semantics (globs allowed? relative to repo root?).
-4. **Cursor** (`.cursorrules` legacy + `.cursor/rules/*.mdc`) — does either mechanism follow file references at all?
-5. **GitHub Copilot** (`.github/copilot-instructions.md`) — same question.
+Replace "docs-cited; no live probe run" in each probed row of `references/importer-wiring.md` with the probe result and tool version (e.g. "probe-verified 2026-07, codex-cli vX.Y: canary absent — `@` lines are inert text").
 
-If a tool cannot be run in the available environment, say so explicitly and fall back to docs/source citations — never present an assumption as a finding.
+### R3 — Act on the Codex result
 
-## Deliverables
-
-### D1 — Support matrix in `references/importer-wiring.md`
-
-A table at the top of the Importers section:
-
-| Tool | Entry point | Reference mechanism | Rules actually loaded? | Evidence |
-| --- | --- | --- | --- | --- |
-
-with one row per tool, `Evidence` linking docs/source or naming the probe. Rewrite the surrounding prose to match reality: if (as expected) some AGENTS.md consumers do **not** follow `@`-lines, the doc must say plainly that for those tools the thin-importer pattern means the rules are *not* loaded, and point at the interim workaround (inline the rules manually / duplicate content) plus the planned fix (generated importers, spec 3.2).
-
-### D2 — Corrected claims elsewhere
-
-Audit and correct every cross-tool loading claim: `README.md:29` ("Keep multiple agent tools loading the same canonical rule files"), `README.md:7`, `SKILL.md` init step 3, `references/migration-guide.md` §5. Claims must be scoped to the tools where they are true.
-
-### D3 — Validator warning (only if the finding warrants it)
-
-If the research confirms that a configured `at-import` importer belongs to a tool known not to follow `@`-lines (i.e. `AGENTS.md` when the repo's tool set includes such a consumer), add a **warning** (never an error) to `validate-rules.mjs`: the parity check verifies the files *agree*, not that every tool *loads* them — with a pointer to the support matrix. Keep it to a couple of lines; if the finding is nuanced (e.g. behavior varies by version), prefer docs-only and skip the code change.
-
-### D4 — Scope memo for spec 3.2
-
-Append a short "Findings → 3.2 scope" section to **this spec file** (specs are living docs here): which tools need a `generated` importer type, which are fine with references, and any format details discovered (e.g. `.mdc` frontmatter fields) that 3.2 must honor.
+- **If Codex does not expand `@`-imports (expected):** flip this repo's own root `AGENTS.md` from an `@`-import file to a `generated` importer (the machinery exists: config entry + `rule-trace sync`), and remove the "expansion is unconfirmed" caveat from the README's dogfooding paragraph in favor of the verified statement. Consider the same guidance in SKILL.md's init/migrate steps.
+- **If Codex does expand them:** update the matrix and strengthen (rather than weaken) the README claim, and note the Codex version the behavior was verified on.
 
 ## Acceptance criteria
 
-1. The matrix covers all five tools with an evidence citation each; no cell says "probably".
-2. Every doc claim identified in D2 is either verified-true or corrected.
-3. Any tool that silently ignores `@`-imports is explicitly called out in `importer-wiring.md` with the interim workaround.
-4. The 3.2 scope memo exists in this file.
-5. `npm test` green (plus a test for D3's warning if implemented, following the warning-test pattern at `tests/rule-trace.test.mjs:589-599`).
+1. At least the Codex row's Evidence cell cites a live probe with a tool version; no probed row says "docs-cited" anymore.
+2. This repo's `AGENTS.md` strategy matches the Codex probe result (generated importer, or verified `@`-imports).
+3. README/SKILL.md claims are consistent with the updated matrix.
+4. `npm test` green; repo-root validator green with zero warnings (the importer config change in R3 must keep parity/freshness checks passing).
 
-## Out of scope
-
-- Implementing generated importers or any new importer type (spec 3.2).
-- Testing tools not named in this repo's docs.
-- Changing default config (`DEFAULT_CONFIG.importers`) — behavior stays; only truth-in-documentation changes.
-
-## Findings → 3.2 scope
+## Findings → 3.2 scope (historical — consumed by the shipped spec 3.2)
 
 - Claude Code can stay on thin `@` importers for `CLAUDE.md`; generated importers should avoid nested imports because only Claude Code reliably expands them recursively.
 - OpenCode can stay on `.opencode/opencode.json` with an `instructions` array that lists canonical files directly; generated output should preserve a flat list and may use OpenCode-supported globs only when all matched files are intentional.

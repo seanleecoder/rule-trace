@@ -983,6 +983,30 @@ test('report rejects an invalid --since value', () => {
   assert.match(res.out, /banana/)
 })
 
+// --now pins report time so staleness (and generatedAt) never drift with the
+// wall clock — the property the committed demo's regeneration test relies on.
+test('report --now pins staleness and generatedAt deterministically', () => {
+  const dir = writeReportFixture()
+  writeJsonl(path.join(dir, '.agents', 'metrics', 'traces.jsonl'), [
+    { uuid: 'e1', traced: true, candidate: ['ROOT-001'], applied: ['ROOT-001'], deviations: [], timestamp: '2026-01-01T00:00:00.000Z' },
+  ])
+  // 10 days after lastSeen → not stale at the 30-day default.
+  let res = runReport(dir, ['--now', '2026-01-11T00:00:00Z'])
+  assert.equal(res.status, 0, res.out)
+  let data = JSON.parse(fs.readFileSync(res.outJson, 'utf8'))
+  assert.equal(data.generatedAt, '2026-01-11T00:00:00.000Z')
+  assert.deepEqual(data.flags.stale, [])
+
+  // 40 days after lastSeen → stale, regardless of the real wall clock.
+  res = runReport(dir, ['--now', '2026-02-10T00:00:00Z'])
+  data = JSON.parse(fs.readFileSync(res.outJson, 'utf8'))
+  assert.ok(data.flags.stale.some(x => x.id === 'ROOT-001'))
+
+  const bad = runScript(REPORT, ['--root', dir, '--now', 'banana'])
+  assert.equal(bad.status, 1)
+  assert.match(bad.out, /banana/)
+})
+
 
 test('sync-importers creates deterministic cursor-mdc generated importers and validator checks freshness', () => {
   const dir = writeFixture()

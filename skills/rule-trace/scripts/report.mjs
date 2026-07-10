@@ -18,7 +18,7 @@
 // Usage:
 //   node report.mjs [--root <dir>] [--out-json <file>] [--out-html <file>]
 //                   [--low-rate <0..1>] [--min-candidates <n>] [--min-coverage <0..1>]
-//                   [--stale-days <n>] [--since <ISO-8601 date>]
+//                   [--stale-days <n>] [--since <ISO-8601 date>] [--now <ISO-8601 date>]
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -41,6 +41,9 @@ function parseArgs(argv) {
     minCoverage: 0.2,
     staleDays: 30,
     since: null,
+    // Report-time "now", pinned via --now for reproducible runs (staleness and
+    // generatedAt both derive from it) — e.g. the committed demo artifacts.
+    now: new Date().toISOString(),
   }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
@@ -59,6 +62,14 @@ function parseArgs(argv) {
         process.exit(1)
       }
       args.since = date.toISOString()
+    } else if (a === '--now') {
+      const value = argv[++i]
+      const date = new Date(value)
+      if (!value || Number.isNaN(date.getTime())) {
+        console.error(`Invalid --now value: ${value}`)
+        process.exit(1)
+      }
+      args.now = date.toISOString()
     }
   }
   return args
@@ -216,7 +227,7 @@ function aggregate(root, opts) {
       .filter(t => {
         if (t.candidate === 0 || !t.lastSeen) return false
         return (
-          Date.now() - new Date(t.lastSeen).getTime() >
+          new Date(opts.now).getTime() - new Date(t.lastSeen).getTime() >
           opts.staleDays * 24 * 60 * 60 * 1000
         )
       })
@@ -226,7 +237,7 @@ function aggregate(root, opts) {
   }
 
   return {
-    generatedAt: new Date().toISOString(),
+    generatedAt: opts.now,
     totalTraces: events.filter(ev => ev.traced !== false).length,
     totalEvents: events.length,
     duplicateEventsIgnored,
