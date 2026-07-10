@@ -54,7 +54,14 @@ rules_validate:
     - if: $CI_COMMIT_BRANCH == "main"
 ```
 
-The validator exits non-zero on any error (broken anchor, orphan/duplicate ID, importer drift, missing required field), so it fails the pipeline like any other check.
+The validator exits non-zero on any error (broken anchor, orphan/duplicate ID, importer drift, stale generated importer, missing required field), so it fails the pipeline like any other check.
+
+If your config uses generated importers, add an explicit freshness check next to validation so CI tells maintainers the direct fix:
+
+```bash
+npx rule-trace@1 sync --check
+npx rule-trace@1 validate
+```
 
 ## 3. Live usage counter (Claude Code)
 

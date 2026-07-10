@@ -40,11 +40,15 @@ Link every cited ID directly to its defining heading, e.g. `` [`ROOT-001`](rules
 
 ## Example
 
-```md
+````md
 Rule trace
 
 - Candidate rules loaded: [`ROOT-003`](rules/root.md), [`TEST-002`](rules/testing.md)
 - Rules applied: [`ROOT-003`](rules/root.md)
 - Sources: [`.agents/rules/root.md`](rules/root.md)
 - Reasoning note: the change was a formatting-only edit, so the style rule constrained it; no test rule was triggered.
+
+```rule-trace
+{"v":1,"candidate":["ROOT-003","TEST-002"],"applied":["ROOT-003"],"deviations":[]}
 ```
+````

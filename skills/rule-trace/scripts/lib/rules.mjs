@@ -236,6 +236,8 @@ function generatedFrontmatter(importer) {
     const globs = importer.globs || '**/*'
     return `---\ndescription: ${description}\nalwaysApply: true\nglobs: ${globs}\n---\n\n`
   }
+  // GitHub Copilot and plain markdown instruction files need no wrapper; the
+  // generated marker block can be the whole native file body.
   return ''
 }
 
@@ -251,7 +253,7 @@ export function generatedImporterStatus(root, config, importer) {
   const expected = renderGeneratedImporter(root, config, importer)
   const begin = current.indexOf(GENERATED_BEGIN)
   const end = current.indexOf(GENERATED_END)
-  if (begin === -1 || end === -1 || end < begin) return { state: 'stale', current, expected }
+  if (begin === -1 || end === -1 || end < begin) return { state: 'missing-markers', current, expected }
   const endAfter = end + GENERATED_END.length
   const expectedBegin = expected.indexOf(GENERATED_BEGIN)
   const expectedEndAfter = expected.indexOf(GENERATED_END) + GENERATED_END.length
@@ -276,10 +278,10 @@ export function writeGeneratedImporter(root, config, importer) {
     fs.writeFileSync(abs, status.expected)
     return 'created'
   }
-  const content = status.prefix === undefined
-    ? status.expected
-    : `${status.prefix}${status.expectedRegion}${status.suffix}`
-  fs.writeFileSync(abs, content)
+  if (status.state === 'missing-markers') {
+    throw new Error(`Generated importer ${importer.path} exists but has no rule-trace generated markers; move user content outside a generated marker block or remove the file before syncing.`)
+  }
+  fs.writeFileSync(abs, `${status.prefix}${status.expectedRegion}${status.suffix}`)
   return 'updated'
 }
 
@@ -363,12 +365,34 @@ export function parseTraceBlock(text) {
 export function parseAllTraceBlocks(text) {
   if (!text) return []
   const blocks = []
+  const fencedLineRanges = []
+  const lines = text.split('\n')
+  const lineStarts = []
+  let offset = 0
+  for (const line of lines) {
+    lineStarts.push(offset)
+    offset += line.length + 1
+  }
+  const lineAt = index => {
+    let line = 0
+    for (let i = 0; i < lineStarts.length; i++) {
+      if (lineStarts[i] > index) break
+      line = i
+    }
+    return line
+  }
+
   const fenceRe = /^\s*`{3,4}rule-trace\s*\n[\s\S]*?^\s*`{3,4}\s*$/gmi
   for (const m of text.matchAll(fenceRe)) {
     const parsed = parseFencedTrace(m[0])
-    if (parsed) blocks.push(parsed)
+    if (!parsed) continue
+    blocks.push(parsed)
+    fencedLineRanges.push({
+      start: lineAt(m.index),
+      end: lineAt(m.index + m[0].length),
+    })
   }
-  const lines = text.split('\n')
+
   for (let i = 0; i < lines.length; i++) {
     if (!/^\s*#{0,4}\s*\*{0,2}Rule trace\*{0,2}\s*:?\s*$/i.test(lines[i])) continue
     let end = lines.length
@@ -378,8 +402,11 @@ export function parseAllTraceBlocks(text) {
         break
       }
     }
-    const parsed = parseTraceBlock(lines.slice(i, end).join('\n'))
-    if (parsed) blocks.push(parsed)
+    const overlapsFence = fencedLineRanges.some(range => range.start >= i && range.end < end)
+    if (!overlapsFence) {
+      const parsed = parseTraceBlock(lines.slice(i, end).join('\n'))
+      if (parsed) blocks.push(parsed)
+    }
     i = end - 1
   }
   return blocks

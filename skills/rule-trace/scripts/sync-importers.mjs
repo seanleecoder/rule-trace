@@ -28,8 +28,13 @@ for (const importer of importers) {
       console.log(`  stale ${importer.path}`)
     }
   } else {
-    const action = writeGeneratedImporter(args.root, config, importer)
-    console.log(`  ${action} ${importer.path}`)
+    try {
+      const action = writeGeneratedImporter(args.root, config, importer)
+      console.log(`  ${action} ${importer.path}`)
+    } catch (err) {
+      stale.push(importer.path)
+      console.error(`  ✗ ${err.message}`)
+    }
   }
 }
 

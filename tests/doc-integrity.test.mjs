@@ -152,6 +152,7 @@ test('trace labels and fenced tag stay in lockstep across parser, docs, template
     'skills/rule-trace/scripts/lib/rules.mjs',
     'skills/rule-trace/references/convention.md',
     'skills/rule-trace/templates/rule-trace.md.tmpl',
+    '.agents/rule-trace.md',
     'evals/grade.mjs',
   ]
   for (const rel of rels) {
