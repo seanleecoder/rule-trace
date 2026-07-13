@@ -4,6 +4,8 @@ All notable changes to this project are documented here. This project follows [K
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-07-13
+
 ### Added
 - Live trace coverage metrics, read-side event deduplication, report staleness detection, and release-readiness documentation.
 - Structured fenced `rule-trace` JSON parsing with prose fallback for trace blocks.
