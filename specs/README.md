@@ -1,10 +1,10 @@
 # Implementation specs — rule-trace design-review follow-ups
 
-Phased, agent-ready specs from the design review ([`DESIGN_REVIEW.md`](../DESIGN_REVIEW.md)) and its post-implementation audit ([`DESIGN_REVIEW_UPDATE.md`](../DESIGN_REVIEW_UPDATE.md)). Each spec is self-contained: an agent should be able to implement it from the spec file alone.
+Phased, agent-ready specs from the [design review](../docs/reviews/2026-07-08-design-review.md), its [post-implementation audit](../docs/reviews/2026-07-10-post-implementation-audit.md), and the [2026-07-13 follow-up review](../docs/reviews/2026-07-13-follow-up-review.md). Each spec is self-contained: an agent should be able to implement it from the spec file alone.
 
 ## Status
 
-Phases 1–4 were implemented in PRs #3–#7 and audited in `DESIGN_REVIEW_UPDATE.md` (70/70 tests green at audit time). Fully-completed spec files have been **removed** — their content lives in git history (`git log -- specs/`) and their outcomes in the audit's scorecard. What remains here is only actionable work:
+Phases 1–4 were implemented in PRs #3–#7 and audited in the post-implementation audit (70/70 tests green at audit time; 72/72 as of the follow-up review). Fully-completed spec files have been **removed** — their content lives in git history (`git log -- specs/`) and their outcomes in the audit's scorecard. The 2026-07-13 follow-up review re-verified every remaining spec against the tree: all four are still accurate, and none of the work below has started. What remains here is only actionable work:
 
 | Spec | What remains | Who can do it |
 | --- | --- | --- |
@@ -13,9 +13,9 @@ Phases 1–4 were implemented in PRs #3–#7 and audited in `DESIGN_REVIEW_UPDAT
 | [4.3 Compliance pilot](phase4-03-compliance-benchmark.md) | Run `evals/compliance/run.mjs --exec` and replace the `PILOT.md` placeholder with real numbers — the highest-value un-run command in the repo. | Anyone with an agent CLI + spend |
 | [5.1 Correctness batch](phase5-01-correctness-batch.md) | Six small fixes from the post-implementation audit: retired-deviation counting, double config load, cursor-mdc frontmatter modes, fenced-lint doc note, strongest-severity gap flag, Stop-hook tail read. | Any agent |
 
-Removed (done — see `DESIGN_REVIEW_UPDATE.md` §1 for the audit): 1.1 coverage metric · 1.2 report correctness · 2.1 dogfood · 2.2 example + README · 3.1 structured trace · 3.2 generated importers · 4.1 UX polish · 4.2 OSS hygiene. The U1 stale-flag time bomb found in the audit was fixed directly (report `--now`), not spec'd.
+Removed (done — see the [audit](../docs/reviews/2026-07-10-post-implementation-audit.md) §1): 1.1 coverage metric · 1.2 report correctness · 2.1 dogfood · 2.2 example + README · 3.1 structured trace · 3.2 generated importers · 4.1 UX polish · 4.2 OSS hygiene. The U1 stale-flag time bomb found in the audit was fixed directly (report `--now`), not spec'd.
 
-Future candidates (not yet spec'd, in ROI order — see `DESIGN_REVIEW_UPDATE.md` §5): `doctor` command (one-shot "is collection actually working", closes the silent-config failure mode) · PR trace-lint GitHub Action · hosted demo dashboard · org-export seam.
+Future candidates (not yet spec'd, in ROI order — see the [audit](../docs/reviews/2026-07-10-post-implementation-audit.md) §5 and the [follow-up review](../docs/reviews/2026-07-13-follow-up-review.md) §5): `doctor` command (one-shot "is collection actually working", closes the silent-config failure mode) · PR trace-lint GitHub Action · hosted demo dashboard · org-export seam · a lockstep fix or test for the two diverging CI validate-job snippets (template vs. `references/ci-wiring.md`).
 
 ## Global conventions (apply to every spec)
 

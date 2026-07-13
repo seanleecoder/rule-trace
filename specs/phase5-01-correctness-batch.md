@@ -1,6 +1,6 @@
 # Spec 5.1 — Small correctness batch (post-implementation audit fixes)
 
-**Source:** DESIGN_REVIEW_UPDATE.md findings U2, U3(b), U4, U5, plus the two leftovers from the original review (H2, A6). **Effort:** S total. **Depends on:** nothing. One agent task, one PR — implement all six items; none is optional. (U1, the stale-flag time bomb, is already fixed and is NOT part of this spec.)
+**Source:** the post-implementation audit ([`docs/reviews/2026-07-10-post-implementation-audit.md`](../docs/reviews/2026-07-10-post-implementation-audit.md)) findings U2, U3(b), U4, U5, plus the two leftovers from the original review (H2, A6). **Effort:** S total. **Depends on:** nothing. One agent task, one PR — implement all six items; none is optional. (U1, the stale-flag time bomb, is already fixed and is NOT part of this spec.)
 
 Global conventions in [`specs/README.md`](README.md) apply — especially: no dependencies, hermetic tests for every behavior change, docs move with code, the Stop hook never throws, and this repo's own rules in `.agents/rules/` (the validator runs in CI).
 
