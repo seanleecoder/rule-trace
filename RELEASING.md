@@ -74,7 +74,7 @@ For the current `1.2.0` publish-readiness pass, `npm pack --dry-run` was verifie
 - `skills/rule-trace/templates/wiring/metrics.gitignore`
 - `skills/rule-trace/templates/wiring/stop-hook.settings.json`
 
-The tarball intentionally excludes `tests/`, `evals/`, `specs/`, `DESIGN_REVIEW.md`, and `.github/`.
+The tarball intentionally excludes `tests/`, `evals/`, `specs/`, `docs/`, and `.github/`.
 
 `skills/rule-trace/templates/wiring/github-actions.yml` was re-read during this pass and intentionally left unchanged: the template uses the vendored-path invocation (`node .agents/skills/rule-trace/scripts/validate-rules.mjs`), which is correct for skills.sh installs.
 

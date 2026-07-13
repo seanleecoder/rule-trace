@@ -1,5 +1,7 @@
 # rule-trace — Design Review
 
+*Historical snapshot (2026-07-08, at v1.2.0 / 33 tests). Findings here reflect the codebase before PRs #3–#8; see the [post-implementation audit](2026-07-10-post-implementation-audit.md), the [follow-up review](2026-07-13-follow-up-review.md), and [`specs/README.md`](../../specs/README.md) for current status.*
+
 A Staff/Principal-level pre-1.0-style review of the whole repository: product, architecture, code, docs, DX, and open-source readiness. Method: every file in the repo was read (scripts, shared library, references, templates, all three test files, the eval harness, and the manifests), and the test suite was run (33/33 pass).
 
 **Overall assessment.** This is an unusually well-built small project. The scripts are dependency-free and portable, the failure modes are thought through (non-destructive scaffolding, double-wired-hook detection, UUID-deduped collectors), the docs are honest about the core epistemic limit ("self-reported, not proof"), and the test suite covers real regressions with hermetic fixtures. The review therefore concentrates on leverage: the handful of gaps that decide whether this becomes a widely adopted convention or stays a well-crafted personal tool. The two biggest are (1) the metrics pipeline has no denominator — trace *emission* is never measured, so every downstream flag is confounded — and (2) the pipeline's input format is "whatever prose the model writes," which is the project's largest long-term fragility.

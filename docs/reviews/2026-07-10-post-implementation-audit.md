@@ -1,6 +1,8 @@
 # rule-trace — Design Review Update (post-implementation)
 
-Follow-up to [`DESIGN_REVIEW.md`](DESIGN_REVIEW.md) after all four spec phases landed (PRs #3–#7). Method: audited every merged change against the acceptance criteria in `specs/`, ran the full suite (**70/70 pass**, up from 33), ran the validator against the repo root and `examples/demo` (both clean, zero warnings), inspected the regenerated demo report, and probed the npm registry.
+*Historical snapshot (2026-07-10, merged in PR #8). For what has and hasn't moved since, see the [follow-up review](2026-07-13-follow-up-review.md) and [`specs/README.md`](../../specs/README.md).*
+
+Follow-up to the [design review](2026-07-08-design-review.md) after all four spec phases landed (PRs #3–#7). Method: audited every merged change against the acceptance criteria in `specs/`, ran the full suite (**70/70 pass**, up from 33), ran the validator against the repo root and `examples/demo` (both clean, zero warnings), inspected the regenerated demo report, and probed the npm registry.
 
 **Verdict: the implementation is substantially complete and high quality.** All ten executive-summary items are done or instrumented; the two Critical/High architectural risks from the original review (the metrics denominator and the free-text trace format) are closed in code. This audit surfaced one urgent latent CI breakage (U1, below), which was fixed in the same PR that carries this document. What remains falls into two buckets: a short list of small correctness nits in the new code, and the follow-through steps that need a human or an agent-with-spend (publish, pilot, probes).
 
