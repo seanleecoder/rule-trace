@@ -6,6 +6,12 @@ Third review in the series, after the [design review](2026-07-08-design-review.m
 
 ---
 
+## Post-review addendum — release execution completed (2026-07-13)
+
+The release finding in this dated review has now been resolved. Commit `6aa32bb` (`chore: release rule-trace 1.3.0`) bumped the four lockstep version sources and cut the CHANGELOG; `v1.1.0`, `v1.2.0`, and `v1.3.0` were pushed and each has a GitHub release. `rule-trace@1.3.0` is published to npm, and `npx rule-trace@1 validate --root <migrated repo>` passed from a clean temporary directory. Accordingly, `specs/phase1-03-release-hygiene.md` was removed as complete and the living status ledger now lists only the remaining actionable specs.
+
+---
+
 ## 1. Where we stand
 
 - **HEAD:** `c9e61a1` (merge of PR #8). No commits since.
@@ -22,12 +28,11 @@ Re-verified each one:
 
 | Item (spec) | Status 2026-07-13 | Evidence |
 | --- | --- | --- |
-| Release v1.3.0 ([1.3](../../specs/phase1-03-release-hygiene.md)) | **Unstarted** | All four version fields still 1.2.0; `git tag --list` empty (no retro tags either); npm registry returns 404 for `rule-trace` (name still unclaimed); CHANGELOG `[Unreleased]` populated but not cut. |
 | Importer canary probes ([2.3](../../specs/phase2-03-importer-semantics-research.md)) | **Unrun** | Codex/Cursor/Copilot matrix rows in `importer-wiring.md` still read "docs-cited; no live probe run"; this repo's `AGENTS.md` is still a thin `@`-import file. |
 | Compliance pilot ([4.3](../../specs/phase4-03-compliance-benchmark.md)) | **Unrun** | `evals/compliance/PILOT.md` is still the "no authenticated agent CLI" placeholder. |
 | Correctness batch ([5.1](../../specs/phase5-01-correctness-batch.md)) | **All six items still open** | U2 retired-deviations: `report.mjs:183` still calls `ensure(id)` unconditionally. U3(b): config loaded at `report.mjs:359` *and* inside `aggregate()` at `report.mjs:79`. U4: `generatedFrontmatter()` (`lib/rules.mjs:264-274`) still always emits both `alwaysApply: true` and `globs:`. U5: no fenced-lint caveat anywhere in README/SKILL/references. H2: `'MUST'` still hardcoded at `report.mjs:172` and in the dashboard heading at `report.mjs:348`. A6: `record-trace.mjs:52` still reads the whole transcript via `readJsonl` (`lib/rules.mjs:464-478`), no bounded tail. |
 
-All four remaining spec files were checked against the current tree and are **accurate — none is stale, none contradicted by code or docs.** No spec was removed in this round.
+The three remaining spec files were checked against the current tree and are **accurate — none is stale, none contradicted by code or docs.** The subsequent release completion removed spec 1.3; see the addendum above.
 
 ## 3. Corrections to prior findings
 
@@ -37,11 +42,10 @@ All four remaining spec files were checked against the current tree and are **ac
 
 ## 4. What's left
 
-Exactly the four specs in [`specs/README.md`](../../specs/README.md):
+Exactly the three specs in [`specs/README.md`](../../specs/README.md):
 
 | Spec | Remaining work | Who can execute |
 | --- | --- | --- |
-| [1.3 Release](../../specs/phase1-03-release-hygiene.md) | Bump the four lockstep versions to 1.3.0, cut the CHANGELOG, tag (incl. retro v1.1.0/v1.2.0), `npm publish`, GitHub releases | Maintainer (credentialed); an agent can prep the release PR |
 | [2.3 Importer probes](../../specs/phase2-03-importer-semantics-research.md) | Run the `@`-import canary probes, upgrade the matrix to probe-verified, flip this repo's `AGENTS.md` to a generated importer if Codex is reference-blind | Anyone with the tool CLIs + credentials |
 | [4.3 Compliance pilot](../../specs/phase4-03-compliance-benchmark.md) | Run `evals/compliance/run.mjs --exec` and replace the `PILOT.md` placeholder with real numbers | Anyone with an agent CLI + spend |
 | [5.1 Correctness batch](../../specs/phase5-01-correctness-batch.md) | Six small fixes (table above), one PR | **Any agent — the only item executable without credentials or spend** |
@@ -50,10 +54,9 @@ Exactly the four specs in [`specs/README.md`](../../specs/README.md):
 
 Order unchanged from the audit §5, and the reasoning still holds:
 
-1. **Cut and publish v1.3.0** — until then the docs' pinned `npx rule-trace@1` resolves to nothing.
-2. **Run the compliance pilot** — still the highest-value un-run command in the repo.
-3. **Run the importer probes** — the cheapest way to upgrade the flagship cross-tool claim from honest to verified.
-4. **Implement spec 5.1** — the small correctness batch; first candidate for the next agent session.
-5. **Then the flywheel, in ROI order:** `doctor` command, PR trace-lint GitHub Action, hosted demo dashboard, org-export seam (plus, from §3 above, the small CI-snippet lockstep fix).
+1. **Run the compliance pilot** — still the highest-value un-run command in the repo.
+2. **Run the importer probes** — the cheapest way to upgrade the flagship cross-tool claim from honest to verified.
+3. **Implement spec 5.1** — the small correctness batch; first candidate for the next agent session.
+4. **Then the flywheel, in ROI order:** `doctor` command, PR trace-lint GitHub Action, hosted demo dashboard, org-export seam (plus, from §3 above, the small CI-snippet lockstep fix).
 
 **Bottom line:** the audit's "adoption-ready, risks closed" verdict stands; the project is paused at the hand-off line between code an agent can write and steps only a maintainer or funded run can execute. Nothing found in this round changes the plan — it only confirms it.
