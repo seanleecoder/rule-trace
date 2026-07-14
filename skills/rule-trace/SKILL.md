@@ -1,7 +1,7 @@
 ---
 name: rule-trace
 description: Make AI-agent rule application visible and auditable using stable rule IDs, a catalog, trace blocks, usage counters, and a deterministic validator. Use this whenever someone wants to add rule tracing to a repo, turn existing agent rules (CLAUDE.md, AGENTS.md, .cursorrules, .agents/, scattered docs) into a traceable ID-based format, track or count how often each rule is considered vs applied, audit which rules are noise or dead, validate that a rule catalog and its importers haven't drifted, or build a report/dashboard of rule usage. Triggers on phrases like "rule tracing", "trace which rules were applied", "stable rule IDs", "rules catalog", "collect my traces", "which rules never fire", "rule usage metrics", or wiring rules across multiple agent tools.
-version: 1.3.0
+version: 1.4.0
 license: MIT
 ---
 
