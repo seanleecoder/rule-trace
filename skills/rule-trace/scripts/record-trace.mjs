@@ -20,16 +20,37 @@ import path from 'node:path'
 import process from 'node:process'
 import {
   loadConfig,
-  readJsonl,
   assistantText,
 } from './lib/rules.mjs'
 import { tracesPath, eventFromAssistant, appendEvents } from './lib/metrics.mjs'
 
 const TRANSCRIPT_TAIL_BYTES = 256 * 1024
 
+function parseJsonlLines(lines) {
+  const nonEmptyLines = lines.filter(Boolean)
+  const records = []
+  let truncatedLastLine = false
+  for (let i = 0; i < nonEmptyLines.length; i++) {
+    try {
+      records.push(JSON.parse(nonEmptyLines[i]))
+    } catch {
+      // Claude Code can fire the hook while the newest JSONL line is still
+      // being flushed. If only an older assistant parses in the tail, fall
+      // back to the full read rather than recording stale coverage.
+      if (i === nonEmptyLines.length - 1) truncatedLastLine = true
+    }
+  }
+  return { records, truncatedLastLine }
+}
+
+function readJsonlFull(file) {
+  if (!fs.existsSync(file)) return { records: [], truncatedLastLine: false }
+  return parseJsonlLines(fs.readFileSync(file, 'utf8').split('\n'))
+}
+
 function readJsonlTail(file, bytes = TRANSCRIPT_TAIL_BYTES) {
   const size = fs.statSync(file).size
-  if (size <= bytes) return readJsonl(file)
+  if (size <= bytes) return readJsonlFull(file)
   const fd = fs.openSync(file, 'r')
   try {
     const start = Math.max(0, size - bytes)
@@ -37,16 +58,7 @@ function readJsonlTail(file, bytes = TRANSCRIPT_TAIL_BYTES) {
     const read = fs.readSync(fd, buffer, 0, buffer.length, start)
     const lines = buffer.toString('utf8', 0, read).split('\n')
     if (start > 0) lines.shift()
-    return lines
-      .filter(Boolean)
-      .map(l => {
-        try {
-          return JSON.parse(l)
-        } catch {
-          return null
-        }
-      })
-      .filter(Boolean)
+    return parseJsonlLines(lines)
   } finally {
     fs.closeSync(fd)
   }
@@ -89,11 +101,16 @@ function main() {
   // Walk from the end to the most recent main-agent assistant message with
   // visible text. Messages without trace blocks still count toward live coverage.
   // Long transcripts are read from a bounded tail first to keep the Stop hook
-  // cheap; fall back only when the tail contains no visible assistant message.
-  const tailRecords = readJsonlTail(transcriptPath)
-  const record =
-    lastVisibleAssistant(tailRecords) ||
-    lastVisibleAssistant(readJsonl(transcriptPath))
+  // cheap; fall back only when the tail is inconclusive.
+  const tail = readJsonlTail(transcriptPath)
+  const tailRecord = tail.truncatedLastLine
+    ? null
+    : lastVisibleAssistant(tail.records)
+  let record = tailRecord
+  if (!record) {
+    const full = readJsonlFull(transcriptPath)
+    if (!full.truncatedLastLine) record = lastVisibleAssistant(full.records)
+  }
   if (!record) return
   const transcript = path.basename(transcriptPath)
   const event =

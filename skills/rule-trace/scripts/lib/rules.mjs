@@ -69,6 +69,7 @@ export function loadConfig(root) {
     for (const key of arrayKeys) {
       if (!Array.isArray(config[key])) throw new Error(`${key} must be an array`)
     }
+    if (config.severities.length === 0) throw new Error('severities must not be empty')
     for (const key of ['rulesDir', 'catalogPath', 'metricsDir']) {
       if (typeof config[key] !== 'string') throw new Error(`${key} must be a string`)
     }

@@ -5,7 +5,7 @@ All notable changes to this project are documented here. This project follows [K
 ## [Unreleased]
 
 ### Changed
-- Cursor `.mdc` generated importers now use either global `alwaysApply: true` or glob-scoped `alwaysApply: false`; run `rule-trace sync` to regenerate synced importers.
+- Cursor `.mdc` generated importers now use either global `alwaysApply: true` or glob-scoped `alwaysApply: false`; existing generated `.mdc` files preserve frontmatter on sync, so hand-edit the frontmatter or delete/recreate the file before running `rule-trace sync`.
 - Report `unwaivedMust` / `unwaivedMustGaps` semantics now follow the strongest configured severity while preserving stable JSON field names.
 
 ## [1.3.0] - 2026-07-13

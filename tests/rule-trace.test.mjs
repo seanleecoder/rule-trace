@@ -885,6 +885,33 @@ test('record-trace reads large transcripts from tail and falls back to full read
   assert.equal(events[0].uuid, 'head-only')
 })
 
+test('record-trace does not record stale tail assistant when newest line is truncated', () => {
+  const dir = writeReportFixture()
+  const transcript = path.join(dir, 'truncated-tail.jsonl')
+  const olderAssistant = {
+    type: 'assistant',
+    uuid: 'older-tail-assistant',
+    message: { content: [{ type: 'text', text: 'older answer' }] },
+  }
+  const filler = { type: 'user', message: { content: 'x'.repeat(270 * 1024) } }
+  fs.writeFileSync(
+    transcript,
+    [
+      JSON.stringify(filler),
+      JSON.stringify(olderAssistant),
+      '{"type":"assistant","uuid":"newest-but-truncated","message":{"content":[{"type":"text","text":"newest',
+    ].join('\n'),
+  )
+
+  const res = spawnSync(process.execPath, [path.join(repoRoot, 'skills/rule-trace/scripts/record-trace.mjs')], {
+    input: JSON.stringify({ cwd: dir, transcript_path: transcript, hook_event_name: 'Stop' }),
+    encoding: 'utf8',
+    env: HERMETIC_ENV,
+  })
+  assert.equal(res.status, 0)
+  assert.equal(fs.existsSync(path.join(dir, '.agents', 'metrics', 'traces.jsonl')), false)
+})
+
 test('fenced traces flow through record-trace and parse-traces like prose traces', () => {
   const proseText = [
     'Rule trace',
@@ -1243,6 +1270,16 @@ test('report unwaivedMustGaps uses strongest configured severity', () => {
   assert.match(fs.readFileSync(res.outHtml, 'utf8'), /Un-waived CRITICAL gaps/)
 })
 
+test('report unwaivedMustGaps keeps default MUST behavior', () => {
+  const dir = writeReportFixture()
+  fs.writeFileSync(path.join(dir, '.agents', 'metrics', 'traces.jsonl'), JSON.stringify({ uuid: '1', traced: true, candidate: ['ROOT-001'], applied: [], deviations: [] }) + '\n')
+  const res = runReport(dir)
+  assert.equal(res.status, 0, res.out)
+  const data = JSON.parse(fs.readFileSync(res.outJson, 'utf8'))
+  assert.deepEqual(data.flags.unwaivedMustGaps, [{ id: 'ROOT-001', count: 1 }])
+  assert.match(fs.readFileSync(res.outHtml, 'utf8'), /Un-waived MUST gaps/)
+})
+
 
 test('config warns on unknown key and fails on wrong known-key type', () => {
   const typo = writeFixture()
@@ -1255,6 +1292,12 @@ test('config warns on unknown key and fails on wrong known-key type', () => {
   const wrongRes = runValidator(wrong)
   assert.equal(wrongRes.status, 1)
   assert.match(wrongRes.out, /importers must be an array/)
+
+  const emptySeverities = writeFixture()
+  fs.writeFileSync(path.join(emptySeverities, '.agents', 'rule-trace.config.json'), JSON.stringify({ severities: [] }))
+  const emptySeveritiesRes = runValidator(emptySeverities)
+  assert.equal(emptySeveritiesRes.status, 1)
+  assert.match(emptySeveritiesRes.out, /severities must not be empty/)
 })
 
 test('config warns when packageRuleGlobs uses unsupported recursive glob', () => {
