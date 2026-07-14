@@ -69,6 +69,7 @@ export function loadConfig(root) {
     for (const key of arrayKeys) {
       if (!Array.isArray(config[key])) throw new Error(`${key} must be an array`)
     }
+    if (config.severities.length === 0) throw new Error('severities must not be empty')
     for (const key of ['rulesDir', 'catalogPath', 'metricsDir']) {
       if (typeof config[key] !== 'string') throw new Error(`${key} must be a string`)
     }
@@ -265,8 +266,10 @@ function generatedFrontmatter(importer) {
   const flavor = importer.flavor || 'plain-md'
   if (flavor === 'cursor-mdc') {
     const description = importer.description || 'rule-trace canonical rules and trace convention'
-    const globs = importer.globs || '**/*'
-    return `---\ndescription: ${description}\nalwaysApply: true\nglobs: ${globs}\n---\n\n`
+    if (importer.globs) {
+      return `---\ndescription: ${description}\nalwaysApply: false\nglobs: ${importer.globs}\n---\n\n`
+    }
+    return `---\ndescription: ${description}\nalwaysApply: true\n---\n\n`
   }
   // GitHub Copilot and plain markdown instruction files need no wrapper; the
   // generated marker block can be the whole native file body.

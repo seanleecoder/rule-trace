@@ -21,6 +21,7 @@ import {
   loadConfig,
   parseAllTraceBlocks,
   parseTraceBlock,
+  renderGeneratedImporter,
 } from '../skills/rule-trace/scripts/lib/rules.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -775,6 +776,28 @@ function runReport(dir, extraArgs = []) {
   return { ...res, outJson, outHtml }
 }
 
+test('cursor generated importer frontmatter uses either globs or alwaysApply', () => {
+  const dir = writeReportFixture()
+  const config = loadConfig(dir)
+  const scoped = renderGeneratedImporter(dir, config, {
+    path: '.cursor/rules/rule-trace.mdc',
+    type: 'generated',
+    flavor: 'cursor-mdc',
+    globs: 'src/**/*.js',
+  })
+  assert.match(scoped, /alwaysApply: false/)
+  assert.match(scoped, /globs: src\/\*\*\/\*\.js/)
+
+  const global = renderGeneratedImporter(dir, config, {
+    path: '.cursor/rules/rule-trace.mdc',
+    type: 'generated',
+    flavor: 'cursor-mdc',
+  })
+  assert.match(global, /alwaysApply: true/)
+  assert.doesNotMatch(global, /^globs:/m)
+})
+
+
 test('record-trace writes traced, untraced, and deduped live coverage events', () => {
   const dir = writeReportFixture()
   const transcript = path.join(dir, 'session.jsonl')
@@ -830,6 +853,64 @@ test('record-trace writes traced, untraced, and deduped live coverage events', (
   assert.deepEqual(events[1].candidate, ['ROOT-001'])
 })
 
+
+
+test('record-trace reads large transcripts from tail and falls back to full read', () => {
+  const runHook = (dir, transcript) => spawnSync(process.execPath, [path.join(repoRoot, 'skills/rule-trace/scripts/record-trace.mjs')], {
+    input: JSON.stringify({ cwd: dir, transcript_path: transcript, hook_event_name: 'Stop' }),
+    encoding: 'utf8',
+    env: HERMETIC_ENV,
+  })
+
+  const tailDir = writeReportFixture()
+  const tailTranscript = path.join(tailDir, 'tail.jsonl')
+  writeJsonl(tailTranscript, [
+    { type: 'user', message: { content: 'x'.repeat(270 * 1024) } },
+    { type: 'assistant', uuid: 'tail-final', message: { content: [{ type: 'text', text: 'tail answer' }] } },
+  ])
+  let res = runHook(tailDir, tailTranscript)
+  assert.equal(res.status, 0)
+  let events = fs.readFileSync(path.join(tailDir, '.agents', 'metrics', 'traces.jsonl'), 'utf8').trim().split('\n').map(JSON.parse)
+  assert.equal(events[0].uuid, 'tail-final')
+
+  const fallbackDir = writeReportFixture()
+  const fallbackTranscript = path.join(fallbackDir, 'fallback.jsonl')
+  writeJsonl(fallbackTranscript, [
+    { type: 'assistant', uuid: 'head-only', message: { content: [{ type: 'text', text: 'head answer' }] } },
+    { type: 'user', message: { content: 'x'.repeat(270 * 1024) } },
+  ])
+  res = runHook(fallbackDir, fallbackTranscript)
+  assert.equal(res.status, 0)
+  events = fs.readFileSync(path.join(fallbackDir, '.agents', 'metrics', 'traces.jsonl'), 'utf8').trim().split('\n').map(JSON.parse)
+  assert.equal(events[0].uuid, 'head-only')
+})
+
+test('record-trace does not record stale tail assistant when newest line is truncated', () => {
+  const dir = writeReportFixture()
+  const transcript = path.join(dir, 'truncated-tail.jsonl')
+  const olderAssistant = {
+    type: 'assistant',
+    uuid: 'older-tail-assistant',
+    message: { content: [{ type: 'text', text: 'older answer' }] },
+  }
+  const filler = { type: 'user', message: { content: 'x'.repeat(270 * 1024) } }
+  fs.writeFileSync(
+    transcript,
+    [
+      JSON.stringify(filler),
+      JSON.stringify(olderAssistant),
+      '{"type":"assistant","uuid":"newest-but-truncated","message":{"content":[{"type":"text","text":"newest',
+    ].join('\n'),
+  )
+
+  const res = spawnSync(process.execPath, [path.join(repoRoot, 'skills/rule-trace/scripts/record-trace.mjs')], {
+    input: JSON.stringify({ cwd: dir, transcript_path: transcript, hook_event_name: 'Stop' }),
+    encoding: 'utf8',
+    env: HERMETIC_ENV,
+  })
+  assert.equal(res.status, 0)
+  assert.equal(fs.existsSync(path.join(dir, '.agents', 'metrics', 'traces.jsonl')), false)
+})
 
 test('fenced traces flow through record-trace and parse-traces like prose traces', () => {
   const proseText = [
@@ -1150,14 +1231,55 @@ test('retiredIds fill numbering gaps but cannot remain defined', () => {
 test('report treats retired IDs as retired rather than unknown', () => {
   const dir = writeGapFixture(['ROOT-002'])
   fs.mkdirSync(path.join(dir, '.agents', 'metrics'), { recursive: true })
-  fs.writeFileSync(path.join(dir, '.agents', 'metrics', 'traces.jsonl'), JSON.stringify({ uuid: '1', traced: true, candidate: ['ROOT-001', 'ROOT-002'], applied: ['ROOT-002'], deviations: [] }) + '\n')
+  fs.writeFileSync(path.join(dir, '.agents', 'metrics', 'traces.jsonl'), JSON.stringify({ uuid: '1', traced: true, candidate: ['ROOT-001', 'ROOT-002'], applied: ['ROOT-002'], deviations: ['ROOT-002'] }) + '\n')
   const outJson = path.join(dir, 'report.json')
   const res = spawnSync(process.execPath, [path.join(repoRoot, 'skills/rule-trace/scripts/report.mjs'), '--root', dir, '--out-json', outJson, '--out-html', path.join(dir, 'report.html')], { encoding: 'utf8' })
   assert.equal(res.status, 0, res.stderr)
   const data = JSON.parse(fs.readFileSync(outJson, 'utf8'))
   assert.deepEqual(data.flags.unknownIds, [])
-  assert.deepEqual(data.flags.retired, [{ id: 'ROOT-002', candidate: 1, applied: 1 }])
+  assert.deepEqual(data.flags.retired, [{ id: 'ROOT-002', candidate: 1, applied: 1, deviations: 1 }])
+  assert.equal(data.distinctRulesSeen, 1)
 })
+
+
+test('report emits config warnings only once', () => {
+  const dir = writeReportFixture()
+  fs.writeFileSync(path.join(dir, '.agents', 'rule-trace.config.json'), JSON.stringify({ ruleDirs: '.agents/rules' }))
+  fs.writeFileSync(path.join(dir, '.agents', 'metrics', 'traces.jsonl'), '')
+  const res = runReport(dir)
+  assert.equal(res.status, 0, res.out)
+  assert.equal((res.out.match(/Config warning: unknown key/g) || []).length, 1)
+})
+
+test('report unwaivedMustGaps uses strongest configured severity', () => {
+  const dir = writeReportFixture()
+  fs.writeFileSync(path.join(dir, '.agents', 'rule-trace.config.json'), JSON.stringify({ severities: ['CRITICAL', 'ADVISORY'] }))
+  fs.writeFileSync(path.join(dir, '.agents', 'rules', 'root.md'), [
+    '## ROOT-001', '- Scope: repository', '- Applies when: always', '- Severity: CRITICAL', '- Rule: critical thing', '',
+    '## ROOT-002', '- Scope: repository', '- Applies when: sometimes', '- Severity: ADVISORY', '- Rule: advisory thing', '',
+  ].join('\n'))
+  fs.writeFileSync(path.join(dir, '.agents', 'rules-catalog.md'), [
+    '| Rule ID | Source | Severity |', '| --- | --- | --- |',
+    '| `ROOT-001` | rules/root.md | CRITICAL |', '| `ROOT-002` | rules/root.md | ADVISORY |', '',
+  ].join('\n'))
+  fs.writeFileSync(path.join(dir, '.agents', 'metrics', 'traces.jsonl'), JSON.stringify({ uuid: '1', traced: true, candidate: ['ROOT-001'], applied: [], deviations: [] }) + '\n')
+  const res = runReport(dir)
+  assert.equal(res.status, 0, res.out)
+  const data = JSON.parse(fs.readFileSync(res.outJson, 'utf8'))
+  assert.deepEqual(data.flags.unwaivedMustGaps, [{ id: 'ROOT-001', count: 1 }])
+  assert.match(fs.readFileSync(res.outHtml, 'utf8'), /Un-waived CRITICAL gaps/)
+})
+
+test('report unwaivedMustGaps keeps default MUST behavior', () => {
+  const dir = writeReportFixture()
+  fs.writeFileSync(path.join(dir, '.agents', 'metrics', 'traces.jsonl'), JSON.stringify({ uuid: '1', traced: true, candidate: ['ROOT-001'], applied: [], deviations: [] }) + '\n')
+  const res = runReport(dir)
+  assert.equal(res.status, 0, res.out)
+  const data = JSON.parse(fs.readFileSync(res.outJson, 'utf8'))
+  assert.deepEqual(data.flags.unwaivedMustGaps, [{ id: 'ROOT-001', count: 1 }])
+  assert.match(fs.readFileSync(res.outHtml, 'utf8'), /Un-waived MUST gaps/)
+})
+
 
 test('config warns on unknown key and fails on wrong known-key type', () => {
   const typo = writeFixture()
@@ -1170,6 +1292,12 @@ test('config warns on unknown key and fails on wrong known-key type', () => {
   const wrongRes = runValidator(wrong)
   assert.equal(wrongRes.status, 1)
   assert.match(wrongRes.out, /importers must be an array/)
+
+  const emptySeverities = writeFixture()
+  fs.writeFileSync(path.join(emptySeverities, '.agents', 'rule-trace.config.json'), JSON.stringify({ severities: [] }))
+  const emptySeveritiesRes = runValidator(emptySeverities)
+  assert.equal(emptySeveritiesRes.status, 1)
+  assert.match(emptySeveritiesRes.out, /severities must not be empty/)
 })
 
 test('config warns when packageRuleGlobs uses unsupported recursive glob', () => {

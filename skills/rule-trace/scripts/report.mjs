@@ -8,8 +8,9 @@
 //   - dead rules: in the catalog but never once a candidate (noise to retire)
 //   - always-candidate-never-applied: surfaced but never used (miscoped/ignored)
 //   - low application rate: candidate often, applied rarely
-//   - un-waived MUST gaps: a MUST-severity rule was a candidate, not applied, and
-//     not declared in a Deviations line — the highest-priority review item
+//   - un-waived strongest-severity gaps: a strongest-severity rule was a
+//     candidate, not applied, and not declared in a Deviations line — the
+//     highest-priority review item
 //   - unknown IDs: cited in a trace but absent from the catalog (hallucinated/stale)
 //
 // Counts are self-reported by the model: they record what it *claimed*, not proof
@@ -75,8 +76,7 @@ function parseArgs(argv) {
   return args
 }
 
-function aggregate(root, opts) {
-  const config = loadConfig(root)
+function aggregate(root, opts, config) {
   const catalog = loadCatalog(root, config)
   const { byId } = scanRuleHeadings(root, config)
   const known = new Map(catalog.map(r => [r.id, r]))
@@ -146,6 +146,11 @@ function aggregate(root, opts) {
   }
   const unknown = new Map()
   const retired = new Map()
+  const ensureRetired = id => {
+    if (!retired.has(id)) retired.set(id, { id, candidate: 0, applied: 0, deviations: 0 })
+    return retired.get(id)
+  }
+  const strongestSeverity = config.severities[0]
 
   for (const ev of events) {
     if (ev.traced === false) continue
@@ -160,27 +165,32 @@ function aggregate(root, opts) {
     }
     for (const id of candidate) {
       if (retiredIds.has(id)) {
-        if (!retired.has(id)) retired.set(id, { id, candidate: 0, applied: 0 })
-        retired.get(id).candidate++
+        ensureRetired(id).candidate++
         continue
       }
       const r = ensure(id)
       r.candidate++
       if (ev.timestamp && (!r.lastSeen || ev.timestamp > r.lastSeen))
         r.lastSeen = ev.timestamp
-      // A candidate MUST rule that was neither applied nor explicitly waived.
-      if (severityOf(id) === 'MUST' && !applied.has(id) && !deviations.has(id))
+      // A candidate strongest-severity rule that was neither applied nor explicitly waived.
+      if (
+        severityOf(id) === strongestSeverity &&
+        !applied.has(id) &&
+        !deviations.has(id)
+      )
         r.unwaivedMust++
     }
     for (const id of applied) {
       if (retiredIds.has(id)) {
-        if (!retired.has(id)) retired.set(id, { id, candidate: 0, applied: 0 })
-        retired.get(id).applied++
+        ensureRetired(id).applied++
       } else {
         ensure(id).applied++
       }
     }
-    for (const id of deviations) ensure(id).deviations++
+    for (const id of deviations) {
+      if (retiredIds.has(id)) ensureRetired(id).deviations++
+      else ensure(id).deviations++
+    }
   }
 
   // Build the per-rule table over the full catalog (so dead rules appear).
@@ -257,7 +267,7 @@ function esc(s) {
   )
 }
 
-function buildHtml(data, lowRate = 0.5) {
+function buildHtml(data, lowRate = 0.5, config = { severities: ['MUST'] }) {
   const coverage = data.coverage || { traced: 0, untraced: 0, rate: null }
   const coverageTotal = coverage.traced + coverage.untraced
   const coveragePct = coverage.rate === null ? '—' : Math.round(coverage.rate * 100) + '%'
@@ -298,6 +308,10 @@ function buildHtml(data, lowRate = 0.5) {
     `</section>`
 
   const flags = data.flags
+  const strongestSeverity = config.severities?.[0] || 'MUST'
+  const gapTitle = strongestSeverity === 'MUST'
+    ? 'Un-waived MUST gaps (highest priority)'
+    : `Un-waived ${strongestSeverity} gaps (highest priority)`
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Rule tracing — usage report</title>
@@ -345,19 +359,19 @@ function buildHtml(data, lowRate = 0.5) {
     <thead><tr><th>Rule</th><th>Sev</th><th>Candidate</th><th>Applied</th><th>Waived</th><th>Application rate</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>
-  ${list('Un-waived MUST gaps (highest priority)', flags.unwaivedMustGaps, x => `<li class="mono">${esc(x.id)} — ${x.count}×</li>`)}
+  ${list(gapTitle, flags.unwaivedMustGaps, x => `<li class="mono">${esc(x.id)} — ${x.count}×</li>`)}
   ${list('Always candidate, never applied (miscoped or ignored)', flags.alwaysCandidateNeverApplied, id => `<li class="mono">${esc(id)}</li>`)}
   ${list('Low application rate', flags.lowRate, x => `<li class="mono">${esc(x.id)} — ${Math.round(x.rate * 100)}%</li>`)}
   ${list('Dead rules (never a candidate — retire or re-scope)', flags.deadRules, id => `<li class="mono">${esc(id)}</li>`)}
   ${list('Stale (used before, not recently)', flags.stale || [], x => `<li class="mono">${esc(x.id)} — last seen ${esc(x.lastSeen)}</li>`)}
-  ${list('Retired IDs cited in history', flags.retired || [], x => `<li class="mono">${esc(x.id)} — candidate ${x.candidate}×, applied ${x.applied}×</li>`)}
+  ${list('Retired IDs cited in history', flags.retired || [], x => `<li class="mono">${esc(x.id)} — candidate ${x.candidate}×, applied ${x.applied}×, waived ${x.deviations}×</li>`)}
   ${list('Unknown IDs cited (hallucinated or stale)', flags.unknownIds, x => `<li class="mono">${esc(x.id)} — ${x.count}×</li>`)}
 </body></html>`
 }
 
 const opts = parseArgs(process.argv.slice(2))
 const config = loadConfig(opts.root)
-const data = aggregate(opts.root, opts)
+const data = aggregate(opts.root, opts, config)
 
 const outJson =
   opts.outJson || path.join(opts.root, config.metricsDir, 'report.json')
@@ -366,7 +380,7 @@ const outHtml =
 fs.mkdirSync(path.dirname(outJson), { recursive: true })
 fs.writeFileSync(outJson, JSON.stringify(data, null, 2))
 fs.mkdirSync(path.dirname(outHtml), { recursive: true })
-fs.writeFileSync(outHtml, buildHtml(data, opts.lowRate))
+fs.writeFileSync(outHtml, buildHtml(data, opts.lowRate, config))
 
 console.log(
   `Aggregated ${data.totalTraces} trace block(s) over ${data.catalogSize} catalog rules.`,
@@ -374,6 +388,6 @@ console.log(
 if (data.duplicateEventsIgnored > 0)
   console.log(`  ignored duplicate events: ${data.duplicateEventsIgnored}`)
 console.log(
-  `  dead: ${data.flags.deadRules.length} | never-applied: ${data.flags.alwaysCandidateNeverApplied.length} | low-rate: ${data.flags.lowRate.length} | un-waived MUST: ${data.flags.unwaivedMustGaps.length} | stale: ${data.flags.stale.length} | unknown IDs: ${data.flags.unknownIds.length}`,
+  `  dead: ${data.flags.deadRules.length} | never-applied: ${data.flags.alwaysCandidateNeverApplied.length} | low-rate: ${data.flags.lowRate.length} | un-waived ${config.severities[0] || 'MUST'}: ${data.flags.unwaivedMustGaps.length} | stale: ${data.flags.stale.length} | unknown IDs: ${data.flags.unknownIds.length}`,
 )
 console.log(`  wrote ${outJson} and ${outHtml}`)
