@@ -12,7 +12,7 @@ The validator can prove that configured entry points reference the same files. I
 | Cursor | `.cursorrules`; `.cursor/rules/*.mdc` | Generated `.mdc` rule file selected by Cursor | Yes when materialized with `type: generated`, `flavor: cursor-mdc`; no for `@` includes | Cursor rules docs (docs-cited; no live probe run): https://docs.cursor.com/context/rules |
 | GitHub Copilot | `.github/copilot-instructions.md` | Generated plain markdown custom instructions | Yes when materialized with `type: generated`, `flavor: copilot-md`; no for `@` includes | GitHub Copilot custom instructions docs (docs-cited; no live probe run): https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-repository-instructions |
 
-Each agent tool has its own entry point, but configured importers should reference the **identical set** of canonical rule files when that tool supports references. Drift between configured importers is the single most common way the system rots, so the validator treats any difference as an error. For tools that do not expand `@` lines, use a generated importer so canonical `.agents/` content is materialized into that tool's native format and checked for freshness.
+Each agent tool has its own entry point, but configured importers should reference the **identical set** of canonical rule files when that tool supports references. Drift between configured importers is the single most common way the system rots, so the validator treats any difference as an error. For tools that do not expand `@` lines, use a generated importer so canonical `.agents/` content is materialized into that tool's native format and checked for freshness. Cursor `.mdc` generated importers have two attachment modes: omit `globs` for `alwaysApply: true` global attachment, or set `globs` for glob-scoped attachment with `alwaysApply: false`.
 
 **`CLAUDE.md`** uses `@`-imports — one per line, nothing else on the line:
 
@@ -53,7 +53,7 @@ Use generated importers for tools that read native instruction files but do not 
 
 Then run `node <skill>/scripts/sync-importers.mjs --root <repo>` (or `rule-trace sync`) to create/update the file. The generated region is wrapped in `<!-- rule-trace:generated:begin ... -->` and `<!-- rule-trace:generated:end -->`; content outside those markers is user-owned and preserved. In CI, `sync-importers.mjs --check` or `validate-rules.mjs` fails stale generated importers with a “run rule-trace sync” error. Reference importers still participate in file-set parity; generated importers participate only in freshness checks.
 
-Supported flavors: `cursor-mdc` (adds Cursor `.mdc` frontmatter with `description`, `alwaysApply`, and `globs`), `copilot-md`, and `plain-md`. `copilot-md` and `plain-md` need no wrapper, so they render only the marker block plus canonical content. Frontmatter and any other content outside the markers is preserved on later syncs; if you change Cursor frontmatter config after creation, update that user-owned prefix by hand or recreate the generated file.
+Supported flavors: `cursor-mdc` (adds Cursor `.mdc` frontmatter with `description` plus either global `alwaysApply` or scoped `globs`), `copilot-md`, and `plain-md`. `copilot-md` and `plain-md` need no wrapper, so they render only the marker block plus canonical content. Frontmatter and any other content outside the markers is preserved on later syncs; if you change Cursor frontmatter config after creation, update that user-owned prefix by hand or recreate the generated file.
 
 ## The Stop hook (Claude Code only)
 

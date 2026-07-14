@@ -265,8 +265,10 @@ function generatedFrontmatter(importer) {
   const flavor = importer.flavor || 'plain-md'
   if (flavor === 'cursor-mdc') {
     const description = importer.description || 'rule-trace canonical rules and trace convention'
-    const globs = importer.globs || '**/*'
-    return `---\ndescription: ${description}\nalwaysApply: true\nglobs: ${globs}\n---\n\n`
+    if (importer.globs) {
+      return `---\ndescription: ${description}\nalwaysApply: false\nglobs: ${importer.globs}\n---\n\n`
+    }
+    return `---\ndescription: ${description}\nalwaysApply: true\n---\n\n`
   }
   // GitHub Copilot and plain markdown instruction files need no wrapper; the
   // generated marker block can be the whole native file body.

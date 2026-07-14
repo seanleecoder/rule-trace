@@ -47,7 +47,9 @@ The scripts resolve repo layout from an optional `.agents/rule-trace.config.json
 }
 ```
 
-`packageRuleGlobs` supports explicit single-segment `*` wildcards such as `packages/*/.agents/rules/*.md`; recursive `**` globs are unsupported and warn because they would otherwise hide deeper rule files. Add a config when the target repo deviates — e.g. a non-monorepo with no `packageRuleGlobs`, a different importer set, or a generated Cursor/Copilot entry point. `importers[].type` is `at-import` (lines like `@path/to/file.md`), `opencode-instructions` (the JSON `instructions` array), or `generated` (materialized canonical content between markers). Generated importers also set `flavor`: `cursor-mdc`, `copilot-md`, or `plain-md`. Importers not present in the repo are skipped with a warning rather than failing the parity/freshness check.
+The first entry in `severities` is treated as the strongest severity for report gap flags; stable JSON names such as `unwaivedMust` still refer to that strongest configured severity.
+
+`packageRuleGlobs` supports explicit single-segment `*` wildcards such as `packages/*/.agents/rules/*.md`; recursive `**` globs are unsupported and warn because they would otherwise hide deeper rule files. Add a config when the target repo deviates — e.g. a non-monorepo with no `packageRuleGlobs`, a different importer set, or a generated Cursor/Copilot entry point. `importers[].type` is `at-import` (lines like `@path/to/file.md`), `opencode-instructions` (the JSON `instructions` array), or `generated` (materialized canonical content between markers). Generated importers also set `flavor`: `cursor-mdc`, `copilot-md`, or `plain-md`. For `cursor-mdc`, omit `globs` for a global rule with `alwaysApply: true`; set `globs` for glob-scoped attachment, which emits `alwaysApply: false` because Cursor treats these as exclusive modes. Importers not present in the repo are skipped with a warning rather than failing the parity/freshness check.
 
 Generated example:
 

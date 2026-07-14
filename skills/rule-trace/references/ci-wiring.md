@@ -23,7 +23,7 @@ Or a package script (when the skill is vendored/installed at `.agents/skills/`):
 }
 ```
 
-If your repo enforces that every script is documented (or similar), remember to add an entry for the new script there too.
+If your repo enforces that every script is documented (or similar), remember to add an entry for the new script there too. Use `--lint-file` on real trace output, not documentation quoting the trace format: four-backtick outer examples are ignored, while three-backtick `rule-trace` examples are linted as real traces.
 
 ## 2. CI gate
 

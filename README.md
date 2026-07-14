@@ -221,7 +221,7 @@ The dashboard highlights:
 - `deadRules` - catalogued rules that were never candidates.
 - `alwaysCandidateNeverApplied` - rules that came up but never constrained the work.
 - `lowRate` - rules below the configured application-rate threshold.
-- `unwaivedMustGaps` - `MUST` rules that were candidates but neither applied nor waived.
+- `unwaivedMustGaps` - strongest configured severity rules (default `MUST`) that were candidates but neither applied nor waived.
 - `stale` - rules that were candidates before but have not surfaced within the configured staleness window.
 - `unknownIds` - hallucinated or stale IDs cited by traces.
 
@@ -247,7 +247,7 @@ A trace block is roughly 50–100 tokens on substantive responses. Rule files us
 - Invalid severity values outside `MUST`, `SHOULD`, and `MAY`.
 - Importer drift, where configured agent tools load different rule file sets.
 - Malformed OpenCode config when `.opencode/opencode.json` is present.
-- Trace blocks that cite IDs missing from the catalog when using `--lint-file <path>`.
+- Trace blocks that cite IDs missing from the catalog when using `--lint-file <path>`. Lint real trace output, not files that document the trace format; quoted examples inside four-backtick fences are ignored, but three-backtick `rule-trace` examples are linted as real traces.
 
 It warns, but does not fail, when configured importers are absent or numbered IDs have gaps. If a gap is intentional because a rule was retired, add that ID to `retiredIds` in `.agents/rule-trace.config.json` so validation treats the gap as documented retirement rather than drift. If a repo intentionally uses only one agent tool, set `importers` in `.agents/rule-trace.config.json` to just that entry so validation stays quiet.
 
