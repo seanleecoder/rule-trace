@@ -30,7 +30,7 @@ If your repo enforces that every script is documented (or similar), remember to 
 **GitHub Actions** (`.github/workflows/rules.yml`):
 
 ```yaml
-name: rules
+name: rule-trace
 on: [push, pull_request]
 jobs:
   validate:
@@ -41,6 +41,8 @@ jobs:
         with: { node-version: '20' }
       - run: npx rule-trace@1 validate
 ```
+
+This snippet and the vendored one in `templates/wiring/github-actions.yml` intentionally differ in one line only — the install command (`npx rule-trace@1 validate` here vs. `node .agents/skills/rule-trace/scripts/validate-rules.mjs` there) — matching the npx vs. vendored install paths from §1. That's not drift; pick whichever install path matches your setup.
 
 **GitLab CI** (a job alongside your existing lint/test jobs):
 
